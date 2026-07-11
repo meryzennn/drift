@@ -49,7 +49,7 @@ export default function WalletModal({ isOpen, onClose }: WalletModalProps) {
           </button>
         </div>
         {/* Modal Body */}
-        <div className="p-sm flex flex-col gap-xs max-h-[300px] overflow-y-auto">
+        <div className="p-sm flex flex-col gap-xs min-h-[250px] max-h-[400px] overflow-y-auto">
           {wallets.map((wallet) => (
             <button 
               key={wallet.adapter.name}
