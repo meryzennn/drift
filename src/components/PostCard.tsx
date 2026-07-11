@@ -181,7 +181,7 @@ export default function PostCard({ post }: PostCardProps) {
             post.authorPublicKey.slice(0, 2)
           )}
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-sm flex-wrap relative">
             <Link href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} className="font-label-md text-on-surface hover:underline">{post.authorProfile?.displayName || "Anonymous User"}</Link>
             <span className="material-symbols-outlined text-[14px] text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
@@ -247,7 +247,7 @@ export default function PostCard({ post }: PostCardProps) {
               </div>
             </div>
           ) : (
-            <div className="mt-xs font-body-md text-on-surface whitespace-pre-wrap">
+            <div className="mt-xs font-body-md text-on-surface whitespace-pre-wrap break-words break-all">
               {displayContent}
             </div>
           )}
