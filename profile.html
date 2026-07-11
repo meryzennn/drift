@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Drift - Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#1f1f22",
+                        "surface-bright": "#39393c",
+                        "surface-tint": "#b4c5ff",
+                        "on-surface-variant": "#c3c6d7",
+                        "on-secondary": "#003824",
+                        "background": "#131316",
+                        "surface-variant": "#353438",
+                        "on-primary-container": "#eeefff",
+                        "on-primary": "#002a78",
+                        "tertiary-fixed-dim": "#ffb596",
+                        "tertiary-fixed": "#ffdbcd",
+                        "inverse-on-surface": "#303033",
+                        "surface-container-high": "#2a2a2d",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed": "#00174b",
+                        "on-secondary-fixed-variant": "#005236",
+                        "secondary-fixed-dim": "#4edea3",
+                        "on-tertiary-fixed-variant": "#7d2d00",
+                        "tertiary-container": "#bc4800",
+                        "surface-container-low": "#1b1b1e",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-container": "#ffede6",
+                        "error-container": "#93000a",
+                        "surface-dim": "#131316",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-secondary-fixed": "#002113",
+                        "inverse-primary": "#0053db",
+                        "primary": "#b4c5ff",
+                        "surface-container-lowest": "#0e0e11",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-surface": "#e4e1e6",
+                        "tertiary": "#ffb596",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-tertiary-fixed": "#360f00",
+                        "surface": "#131316",
+                        "secondary-container": "#00a572",
+                        "on-secondary-container": "#00311f",
+                        "on-error-container": "#ffdad6",
+                        "secondary": "#4edea3",
+                        "outline-variant": "#434655",
+                        "on-tertiary": "#581e00",
+                        "inverse-surface": "#e4e1e6",
+                        "surface-container-highest": "#353438",
+                        "outline": "#8d90a0",
+                        "on-error": "#690005",
+                        "primary-container": "#2563eb",
+                        "on-background": "#e4e1e6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1200px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "3xl": "64px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "gutter": "20px",
+                        "2xl": "48px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "mono": ["jetbrainsMono"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "mono": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-background'); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined[data-weight="fill"] { font-variation-settings: 'FILL' 1; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- Top Navigation (Mobile Only) -->
+<nav class="md:hidden w-full sticky top-0 z-50 bg-background border-b border-outline-variant flex justify-between items-center h-16 px-md mx-auto">
+<div class="font-headline-lg-mobile text-headline-lg-mobile font-black text-primary tracking-tighter">Drift</div>
+<button class="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+            Connect
+        </button>
+</nav>
+<div class="max-w-container-max mx-auto px-md md:px-lg grid grid-cols-1 md:grid-cols-[250px_minmax(0,1fr)_300px] gap-gutter min-h-screen">
+<!-- Left Column: SideNavBar (Desktop) -->
+<aside class="hidden md:flex flex-col gap-md py-xl h-screen sticky top-0 border-r border-outline-variant pr-md bg-background z-40">
+<div class="font-headline-lg text-headline-lg font-black text-primary tracking-tighter mb-xl px-4">Drift</div>
+<nav class="flex flex-col gap-sm flex-grow">
+<a class="flex items-center gap-md px-4 py-3 text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="home">home</span>
+<span>Home</span>
+</a>
+<a class="flex items-center gap-md px-4 py-3 text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="explore">explore</span>
+<span>Explore</span>
+</a>
+<a class="flex items-center gap-md px-4 py-3 text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="notifications">notifications</span>
+<span>Notifications</span>
+</a>
+<a class="flex items-center gap-md px-4 py-3 text-primary bg-primary-container/10 rounded-full font-label-md text-label-md font-bold" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="person" data-weight="fill">person</span>
+<span>Profile</span>
+</a>
+</nav>
+<button class="mt-auto bg-primary-container hover:bg-blue-500 text-on-primary-container py-3 px-4 rounded-full font-label-md text-label-md w-full text-center transition-colors shadow-none">
+                New Post
+            </button>
+<!-- Wallet Connect (Bottom of sidebar) -->
+<div class="mt-4 border border-outline-variant rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-surface-bright flex items-center justify-center">
+<span class="material-symbols-outlined text-sm" data-icon="account_balance_wallet">account_balance_wallet</span>
+</div>
+<div>
+<div class="font-label-sm text-label-sm">Connect Wallet</div>
+<div class="font-body-sm text-body-sm text-outline text-[10px]">No wallet connected</div>
+</div>
+</div>
+<div class="w-2 h-2 rounded-full bg-outline"></div>
+</div>
+</aside>
+<!-- Center Column: Main Content -->
+<main class="w-full pb-24 md:pb-0 border-x border-outline-variant min-h-screen">
+<!-- Header Banner -->
+<div class="h-48 md:h-64 w-full bg-surface-container-high relative border-b border-outline-variant">
+<div class="w-full h-full bg-cover bg-center" data-alt="Abstract dark theme digital art banner featuring deep blacks, dark greys, and vibrant electric blue geometric lines. The lighting is moody and technical, emphasizing a high-end, precise, utilitarian Web3 aesthetic. A sophisticated gradient background with sharp, modern structural elements." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD6rFyZCA1xxeZqi13l-ikGpvFdadMMJerkkGo9MWReckNMsgNSwvoaj1SK-M3iNs2-YgLdtkSkI7K0PgzSj0jzRQcJjTTq8ihMF1G-m3hSRBYupXTehI0bZgX-JS3j7ns4ls8e-LVJkyM65wkZ8GbKvJbPwaxMedpiOw5Ds3nnCoMpyg5lOx18RU6ns-J4eM7OqDM0Adym_37_XS2F2eB_N1I3UKThWfkYMx3V-9AL2vs9GM5gWXKKUw')"></div>
+<!-- Avatar -->
+<div class="absolute -bottom-16 left-4 md:left-6 rounded-full border-4 border-background bg-surface-bright w-32 h-32 overflow-hidden shadow-none">
+<img class="w-full h-full object-cover" data-alt="Portrait of a modern, professional developer or cypherpunk in a dark studio setting. The lighting is cinematic with subtle blue rim light. Minimalist dark clothing, serious expression, highly detailed, high quality, matching a premium tech brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzkdrOc6H8-Umyz5h1Pr3hLKVvUs4Wd39Ggc2mwS2G2wZ3Qlsyjy9nRmFBpQL7pirdEDBQncQvlrKJGo-1i8BtxBvWzvGB8eQQ5qbitC3nV_FHz8pNsKsE0-tKa9FudXrF2BEHx6OHYZujI3VOZjTRdM96_4dZEhLwFF-jcfY285CVqnQZrgbEShjLuiEMK7UthSA6tfEXPr23uDrtu_c3ra7hnLgxygjFyG38Yo3Ik65L-AsiPcfypQ"/>
+</div>
+</div>
+<!-- Profile Info Section -->
+<div class="pt-20 px-4 md:px-6 pb-6 border-b border-outline-variant">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h1 class="font-headline-lg text-headline-lg md:text-headline-lg text-on-background font-bold tracking-tight">Alex Mercer</h1>
+<p class="font-mono text-mono text-outline mt-1 flex items-center gap-1">
+                            @AxL9...F2p
+                            <span class="material-symbols-outlined text-[14px] text-surface-tint cursor-pointer" data-icon="content_copy">content_copy</span>
+</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-lg font-label-md text-label-md transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="toll">toll</span>
+                            Tip
+                        </button>
+<button class="px-6 py-2 bg-primary-container hover:bg-blue-500 text-on-primary-container rounded-lg font-label-md text-label-md transition-colors">
+                            Follow
+                        </button>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6 leading-relaxed max-w-2xl">
+                    Building the next generation of DeFi. Gas optimization is my passion.
+                </p>
+<!-- Stats -->
+<div class="flex gap-6 mb-2">
+<a class="flex gap-1 items-baseline hover:underline" href="#">
+<span class="font-label-md text-label-md text-on-background font-bold">1,204</span>
+<span class="font-body-sm text-body-sm text-outline">Following</span>
+</a>
+<a class="flex gap-1 items-baseline hover:underline" href="#">
+<span class="font-label-md text-label-md text-on-background font-bold">8,492</span>
+<span class="font-body-sm text-body-sm text-outline">Followers</span>
+</a>
+<div class="flex gap-1 items-baseline ml-auto">
+<span class="material-symbols-outlined text-[16px] text-surface-tint translate-y-0.5" data-icon="payments">payments</span>
+<span class="font-label-md text-label-md text-surface-tint font-bold">14.2 SOL</span>
+<span class="font-body-sm text-body-sm text-outline">Total Tipped</span>
+</div>
+</div>
+</div>
+<!-- Profile Tabs -->
+<div class="flex border-b border-outline-variant px-4 md:px-6 overflow-x-auto hide-scrollbar sticky top-16 md:top-0 bg-background z-30">
+<button class="px-4 py-4 font-label-md text-label-md font-bold text-primary border-b-2 border-primary whitespace-nowrap">
+                    Posts
+                </button>
+<button class="px-4 py-4 font-label-md text-label-md text-outline hover:text-on-surface transition-colors whitespace-nowrap">
+                    Replies
+                </button>
+<button class="px-4 py-4 font-label-md text-label-md text-outline hover:text-on-surface transition-colors whitespace-nowrap">
+                    Media
+                </button>
+<button class="px-4 py-4 font-label-md text-label-md text-outline hover:text-on-surface transition-colors whitespace-nowrap">
+                    Tips Received
+                </button>
+<button class="px-4 py-4 font-label-md text-label-md text-outline hover:text-on-surface transition-colors whitespace-nowrap">Transactions</button></div>
+<!-- Feed Content -->
+<div class="divide-y divide-outline-variant">
+<!-- Post 1 -->
+<article class="p-4 md:p-5 hover:bg-surface-container-low/50 transition-colors cursor-pointer">
+<div class="flex gap-3">
+<div class="flex-shrink-0">
+<div class="w-10 h-10 rounded-full bg-surface-bright overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a modern, professional developer or cypherpunk in a dark studio setting. The lighting is cinematic with subtle blue rim light. Minimalist dark clothing, serious expression, highly detailed, high quality, matching a premium tech brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwt1AaW7PlLS1PN62kAmCql-H8m-JoiG1ia__sKry5eTlaRXPvcmY_9jEIQNC2f6Z6C7wtevTy7N0xs9KV10TNxVGRGZeQFpd5K7qha1ZKlwrqL1BBVgYGzPR59yHik_qeQMQDYfWVdeBB9kKyb-x0HAWL1XKNTMKrV2CL07sBTDIfTGKJhyWcuUNY79RJaGS_y6nl1TgIzzK-NeQsnV_IxaaR7QYLCjdHEr4ZkWDZ9eouzCzlOirFmw"/>
+</div>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2 truncate">
+<span class="font-label-md text-label-md text-on-background font-bold truncate">Alex Mercer</span>
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="verified" data-weight="fill">verified</span>
+<span class="font-body-sm text-body-sm text-outline truncate">@AxL9...F2p · 2h</span>
+</div>
+<button class="text-outline hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-3 leading-relaxed">
+                                Just deployed the new smart contract for automated yield routing. Gas costs reduced by 40%. The technical breakdown is up on the blog. #Solana #DeFi
+                            </p>
+<!-- Interaction Bar -->
+<div class="flex justify-between items-center text-outline w-full max-w-md mt-2">
+<button class="flex items-center gap-2 hover:text-primary transition-colors group p-1">
+<div class="group-hover:bg-primary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="chat_bubble">chat_bubble</span>
+</div>
+<span class="font-body-sm text-body-sm">24</span>
+</button>
+<button class="flex items-center gap-2 hover:text-secondary transition-colors group p-1">
+<div class="group-hover:bg-secondary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="repeat">repeat</span>
+</div>
+<span class="font-body-sm text-body-sm">12</span>
+</button>
+<button class="flex items-center gap-2 hover:text-error transition-colors group p-1">
+<div class="group-hover:bg-error/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="favorite">favorite</span>
+</div>
+<span class="font-body-sm text-body-sm">148</span>
+</button>
+<button class="flex items-center gap-2 hover:text-primary transition-colors group p-1">
+<div class="group-hover:bg-primary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="toll">toll</span>
+</div>
+<span class="font-body-sm text-body-sm">0.5</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Post 2 -->
+<article class="p-4 md:p-5 hover:bg-surface-container-low/50 transition-colors cursor-pointer">
+<div class="flex gap-3">
+<div class="flex-shrink-0">
+<div class="w-10 h-10 rounded-full bg-surface-bright overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a modern, professional developer or cypherpunk in a dark studio setting. The lighting is cinematic with subtle blue rim light. Minimalist dark clothing, serious expression, highly detailed, high quality, matching a premium tech brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDI8jLmS2sPTT7fOBkQOQasCQ4Bs3JOJvgeJMBL9_8TMpktnjBXM1rkLOj_DGFxMgMe2xb1H_6ycSpOm0tGWk6ArWzAuzuzUPPru9452V7zy5OExjg5Mm9LIVq5_W9jPFKdPLZqC0ZisFfuljZCheVxTrhTlTs7ClHRjtbCPbtmyyuUmWpaf581jvhCjqy3Mw4y6L9nJ_0VQM8FCnjMW1ET-Y5yIkXsElT4Kl6G2M8J_MGnG_bQcWlkcg"/>
+</div>
+</div>
+<div class="flex-grow min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2 truncate">
+<span class="font-label-md text-label-md text-on-background font-bold truncate">Alex Mercer</span>
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="verified" data-weight="fill">verified</span>
+<span class="font-body-sm text-body-sm text-outline truncate">@AxL9...F2p · 1d</span>
+</div>
+<button class="text-outline hover:text-primary transition-colors p-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-3 leading-relaxed">
+                                Market conditions are perfect for testing the new liquidity pools. Stay safe out there.
+                            </p>
+<div class="w-full h-48 md:h-64 bg-surface-container border border-outline-variant rounded-xl mb-3 overflow-hidden">
+<div class="w-full h-full bg-cover bg-center" data-alt="Minimalist dark mode dashboard UI snippet showing a highly abstract data visualization chart. Deep blacks, dark zinc backgrounds, precise 1px borders, and bright electric blue line graphs. Clean typography, high-end technical luxury aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCSd0NulWHcsGn24VY3UrtnwYQ-OWq_FjySeG1niH05fXSnKCIvWfFLRkDyC8Cs1_hpy5MDwH-HHOsJsAmwImUHNwYUkEWXnMZkEEIiXvwFhrihy3U4VrDXUKM2iPqr9Z8Nkhzxam1SUtWlvmIX26uxanQ-AXb4fmiP0JMJtMfpCImVJnFlUCg0aD_nRawI6thVAkMY17SNpFrVPAV7rp6Uhvzl4owXzMPerx6-5m0ExKyccUEWTFPNEg')"></div>
+</div>
+<!-- Interaction Bar -->
+<div class="flex justify-between items-center text-outline w-full max-w-md mt-2">
+<button class="flex items-center gap-2 hover:text-primary transition-colors group p-1">
+<div class="group-hover:bg-primary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="chat_bubble">chat_bubble</span>
+</div>
+<span class="font-body-sm text-body-sm">8</span>
+</button>
+<button class="flex items-center gap-2 hover:text-secondary transition-colors group p-1">
+<div class="group-hover:bg-secondary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="repeat">repeat</span>
+</div>
+<span class="font-body-sm text-body-sm">3</span>
+</button>
+<button class="flex items-center gap-2 hover:text-error transition-colors group p-1">
+<div class="group-hover:bg-error/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="favorite">favorite</span>
+</div>
+<span class="font-body-sm text-body-sm">45</span>
+</button>
+<button class="flex items-center gap-2 hover:text-primary transition-colors group p-1">
+<div class="group-hover:bg-primary/10 p-1.5 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="toll">toll</span>
+</div>
+<span class="font-body-sm text-body-sm">0.1</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<div class="hidden divide-y divide-outline-variant" id="transactions-section"><article class="p-4 md:p-5 hover:bg-surface-container-low/50 transition-colors cursor-pointer"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary"><span class="material-symbols-outlined">send</span></div><div><div class="font-label-md text-label-md text-on-background font-bold">Tip Sent</div><div class="font-body-sm text-body-sm text-outline">To: @SolanaDev...x4y</div></div></div><div class="text-right"><div class="font-label-md text-label-md text-primary font-bold">-0.05 SOL</div><div class="flex items-center justify-end gap-2 mt-1"><span class="font-body-sm text-body-sm text-outline">2h ago</span><span class="material-symbols-outlined text-[18px] text-outline hover:text-primary" title="View on Explorer">open_in_new</span></div></div></div></article><article class="p-4 md:p-5 hover:bg-surface-container-low/50 transition-colors cursor-pointer"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-secondary"><span class="material-symbols-outlined">call_received</span></div><div><div class="font-label-md text-label-md text-on-background font-bold">Tip Received</div><div class="font-body-sm text-body-sm text-outline">From: @AlphaHunter...9z</div></div></div><div class="text-right"><div class="font-label-md text-label-md text-primary font-bold">+1.20 SOL</div><div class="flex items-center justify-end gap-2 mt-1"><span class="font-body-sm text-body-sm text-outline">5h ago</span><span class="material-symbols-outlined text-[18px] text-outline hover:text-primary" title="View on Explorer">open_in_new</span></div></div></div></article><article class="p-4 md:p-5 hover:bg-surface-container-low/50 transition-colors cursor-pointer"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-tertiary"><span class="material-symbols-outlined">token</span></div><div><div class="font-label-md text-label-md text-on-background font-bold">NFT Minted</div><div class="font-body-sm text-body-sm text-outline">Drift Genesis #402</div></div></div><div class="text-right"><div class="font-label-md text-label-md text-primary font-bold">-2.00 SOL</div><div class="flex items-center justify-end gap-2 mt-1"><span class="font-body-sm text-body-sm text-outline">1d ago</span><span class="material-symbols-outlined text-[18px] text-outline hover:text-primary" title="View on Explorer">open_in_new</span></div></div></div></article></div></div>
+<div class="h-32"></div> <!-- Bottom padding for scrolling -->
+</main>
+<!-- Right Column: Sidebar (Desktop) -->
+<aside class="hidden lg:block py-md pr-md pl-4 sticky top-0 h-screen overflow-y-auto hide-scrollbar">
+<!-- Search -->
+<div class="relative mb-6">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px]" data-icon="search">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2 border border-outline-variant rounded-full leading-5 bg-surface-container-low text-on-surface placeholder-outline focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-body-sm text-body-sm transition-all shadow-none" placeholder="Search Drift..." type="text"/>
+</div>
+<!-- Trending Section -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant mb-6 overflow-hidden">
+<div class="p-4 border-b border-outline-variant">
+<h2 class="font-headline-md text-headline-md text-on-background font-bold">Trending</h2>
+</div>
+<div class="flex flex-col">
+<a class="p-4 hover:bg-surface-container-high transition-colors border-b border-outline-variant last:border-b-0" href="#">
+<div class="font-body-sm text-body-sm text-outline flex items-center justify-between mb-1">
+<span>DeFi • Trending</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="font-label-md text-label-md font-bold text-on-background">#SolanaSummer</div>
+<div class="font-body-sm text-body-sm text-outline mt-1">12.4k Posts</div>
+</a>
+<a class="p-4 hover:bg-surface-container-high transition-colors border-b border-outline-variant last:border-b-0" href="#">
+<div class="font-body-sm text-body-sm text-outline flex items-center justify-between mb-1">
+<span>Technology • Trending</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="more_horiz">more_horiz</span>
+</div>
+<div class="font-label-md text-label-md font-bold text-on-background">ZK Rollups</div>
+<div class="font-body-sm text-body-sm text-outline mt-1">8,204 Posts</div>
+</a>
+</div>
+</div>
+<!-- Who to Follow Section -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant overflow-hidden">
+<div class="p-4 border-b border-outline-variant">
+<h2 class="font-headline-md text-headline-md text-on-background font-bold">Who to follow</h2>
+</div>
+<div class="flex flex-col">
+<div class="p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors border-b border-outline-variant last:border-b-0 cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-bright overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Abstract portrait of a tech persona. Minimalist vector style, dark background, electric blue accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqn3C9-OI4RYOhPEhJM2wXSELo1EQb733igw4rMioSFXstgTO59xcxABNZvdzr58hDfkLRDedizosdEhZYCsoSNy1S_uLVDR3KaNDgST7B8MZS9DDyHzC2aY5aiiuELJKtG60v2T3DqgLePku19UJ-WhpzQOI75t0-CIDBBd8jwrkMLVmyFih1RV6M1oaqZXyP-CT8sbZULwD8bqlRc7llPldFvCTpwTLRMDG0rPFY2JTZKhYnxGsIEg"/>
+</div>
+<div>
+<div class="font-label-md text-label-md font-bold text-on-background flex items-center gap-1">
+                                    Drift Protocol
+                                    <span class="material-symbols-outlined text-[14px] text-primary" data-icon="verified" data-weight="fill">verified</span>
+</div>
+<div class="font-body-sm text-body-sm text-outline">@driftprotocol</div>
+</div>
+</div>
+<button class="px-4 py-1.5 bg-on-background text-background rounded-full font-label-sm text-label-sm hover:bg-surface-tint transition-colors">
+                            Follow
+                        </button>
+</div>
+</div>
+</div>
+<div class="mt-6 flex flex-wrap gap-x-3 gap-y-1 px-2 font-body-sm text-body-sm text-outline text-[12px]">
+<a class="hover:underline" href="#">Terms of Service</a>
+<a class="hover:underline" href="#">Privacy Policy</a>
+<a class="hover:underline" href="#">Cookie Policy</a>
+<span>© 2024 Drift</span>
+</div>
+</aside>
+</div>
+<!-- Bottom Navigation (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full bg-background border-t border-outline-variant flex justify-around items-center h-16 pb-safe z-50">
+<a class="flex flex-col items-center justify-center w-full h-full text-outline hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="home">home</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-outline hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="search">search</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-outline hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="notifications">notifications</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-primary font-bold" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="person" data-weight="fill">person</span>
+</a>
+</nav>
+<style>
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</body></html>

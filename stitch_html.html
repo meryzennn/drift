@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Drift - Web3 Social Feed</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#2563eb",
+                        "on-primary-container": "#eeefff",
+                        "error": "#ffb4ab",
+                        "on-tertiary": "#581e00",
+                        "primary": "#b4c5ff",
+                        "on-tertiary-fixed": "#360f00",
+                        "tertiary-fixed-dim": "#ffb596",
+                        "surface-container-highest": "#353438",
+                        "on-secondary": "#003824",
+                        "surface-tint": "#b4c5ff",
+                        "surface-variant": "#353438",
+                        "background": "#131316",
+                        "on-background": "#e4e1e6",
+                        "on-secondary-fixed-variant": "#005236",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "surface-container-low": "#1b1b1e",
+                        "on-primary": "#002a78",
+                        "on-secondary-container": "#00311f",
+                        "surface-container": "#1f1f22",
+                        "tertiary": "#ffb596",
+                        "inverse-surface": "#e4e1e6",
+                        "outline": "#8d90a0",
+                        "surface-dim": "#131316",
+                        "inverse-primary": "#0053db",
+                        "on-tertiary-container": "#ffede6",
+                        "on-primary-fixed": "#00174b",
+                        "on-secondary-fixed": "#002113",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#4edea3",
+                        "surface-container-high": "#2a2a2d",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131316",
+                        "secondary-container": "#00a572",
+                        "error-container": "#93000a",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "secondary": "#4edea3",
+                        "surface-container-lowest": "#0e0e11",
+                        "on-surface": "#e4e1e6",
+                        "primary-fixed": "#dbe1ff",
+                        "outline-variant": "#434655",
+                        "on-tertiary-fixed-variant": "#7d2d00",
+                        "tertiary-fixed": "#ffdbcd",
+                        "surface-bright": "#39393c",
+                        "on-surface-variant": "#c3c6d7",
+                        "inverse-on-surface": "#303033",
+                        "tertiary-container": "#bc4800"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "3xl": "64px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "gutter": "20px",
+                        "2xl": "48px",
+                        "container-max": "1200px",
+                        "sm": "8px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display": ["Inter"],
+                        "mono": ["jetbrainsMono"],
+                        "label-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "mono": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background dark:bg-background text-on-background min-h-screen">
+<!-- TopNavBar -->
+<nav class="w-full sticky top-0 z-50 bg-background dark:bg-background border-b border-outline-variant flat no shadows">
+<div class="flex justify-between items-center h-16 px-gutter max-w-container-max mx-auto font-body-md text-body-md text-primary dark:text-primary">
+<div class="font-headline-lg text-headline-lg font-black text-primary tracking-tighter">
+                Drift
+            </div>
+<div class="flex-1 max-w-md mx-md hidden md:block">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-full py-sm pl-xl pr-md text-on-surface focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors font-body-sm text-body-sm" placeholder="Search Drift..." type="text"/>
+</div>
+</div>
+<button class="bg-primary-container text-on-primary-container px-md py-sm rounded-lg font-label-md text-label-md hover:bg-opacity-90 transition-colors active:scale-95 flex items-center gap-sm">
+                Connect Wallet
+            </button>
+</div>
+</nav>
+<main class="max-w-container-max mx-auto px-gutter flex justify-center gap-lg mt-lg pb-2xl">
+<!-- Left Column: SideNavBar (Hidden on Mobile) -->
+<aside class="hidden lg:flex flex-col gap-md py-xl px-md w-64 h-screen sticky top-16 bg-background dark:bg-background border-r border-outline-variant flat no shadows font-label-md text-label-md text-primary dark:text-primary">
+<div class="mb-lg">
+<h2 class="font-headline-md text-headline-md text-primary">Navigation</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Manage your decentralised identity</p>
+</div>
+<nav class="flex flex-col gap-sm">
+<!-- Home (Active) -->
+<a class="flex items-center gap-md px-md py-sm text-primary bg-primary-container/10 rounded-full cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span>Home</span>
+</a>
+<!-- Explore (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span>Explore</span>
+</a>
+<!-- Notifications (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span>Notifications</span>
+</a>
+<!-- Profile (Inactive) -->
+<a class="flex items-center gap-md px-md py-sm text-on-surface hover:text-primary hover:bg-surface-container-high rounded-full transition-all cursor-pointer active:opacity-80" href="#">
+<span class="material-symbols-outlined">person</span>
+<span>Profile</span>
+</a>
+</nav>
+<button class="mt-lg bg-primary-container text-on-primary-container w-full py-sm rounded-full font-label-md text-label-md hover:bg-opacity-90 transition-colors shadow-none">
+                New Post
+            </button>
+</aside>
+<!-- Center Column: Feed -->
+<section class="w-full max-w-2xl flex-1 flex flex-col gap-md">
+<!-- Create Post Card -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-md flex gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A clean, minimalist 3D rendering of an abstract geometric avatar in shades of deep black and pristine white, fitting a highly technical luxury web3 aesthetic. Soft, even lighting creates a serene, modern mood without heavy shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDundecolDFr33E5GzEjoa9elqLlplRxSDtVC0M8nP3iT-kvCqL866YI6N6GE1_m23qWcJ9uU4mEbVwwgRfMFE5PdAaJm9-fQTxHNvMfoFeyJTbWM5nTvPo4Uepz4u4nY7VICX5-JnUtSqWWI5GiDoxpsZsdP8fJPf1rApk9NfGgZJ054AvoWxsJP2moqaZeJ0W_gJz87a15HUcYpnil6MDEGqc929Q_9PxGiZOYUMBHvKtFt4dW6mZmQ"/>
+</div>
+<div class="flex-1">
+<textarea class="w-full bg-transparent border-none text-on-surface placeholder:text-on-surface-variant font-body-lg text-body-lg resize-none focus:ring-0 p-0 min-h-[80px]" placeholder="What's happening in Web3?"></textarea>
+<div class="flex justify-between items-center mt-sm pt-sm border-t border-outline-variant">
+<div class="flex gap-sm text-primary">
+<button class="p-xs hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]">image</span>
+</button>
+<button class="p-xs hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]">gif_box</span>
+</button>
+<button class="p-xs hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]">poll</span>
+</button>
+</div>
+<button class="bg-primary-container text-on-primary-container px-lg py-xs rounded-full font-label-md text-label-md hover:brightness-110 transition-all">
+                            Post
+                        </button>
+</div>
+</div>
+</div>
+<!-- Feed Items -->
+<div class="flex flex-col gap-md">
+<!-- Post 1 -->
+<article class="bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 cursor-pointer">
+<div class="flex items-start gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A sleek, high-contrast black and white digital portrait of an anonymous figure wearing a subtle cyberpunk visor. The aesthetic is extremely polished, resembling high-end developer tools. Lighting is sharp and deliberate, conveying technical precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBO7GFHimVQfiPQoqTnVJGhp_nwlBEZ1mCyjsjHSBSLv3zZ50kxANfIqeth1rSd9cIcJ5_J2LRgYL4AhQHDXbA7XdoibrRe67WdJGJKlg31Xft1QwCMcY_cutDY34vGb4d6TVHnCmWatiF-It40YAZ_f8EHMyjfRjiEEhJOEfMWya-Qp_R3keDvK-C-oYoTifn5kmfh01-XxpwSLz0k5kJHyYfrNyS-cMf2Wm03XByq44H0tuotnk7K-g"/>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-sm">
+<span class="font-label-md text-label-md text-on-surface">Alex Mercer</span>
+<span class="material-symbols-outlined text-[14px] text-primary-container" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-mono text-mono text-on-surface-variant">@AxL9...F2p</span>
+<span class="text-on-surface-variant text-sm px-xs">•</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">2h</span>
+</div>
+<div class="mt-xs font-body-md text-body-md text-on-surface">
+                                Just deployed the new smart contracts for the upcoming DeFi protocol. Gas optimization is looking solid. 🚀
+                                <br/><br/>
+                                Let's build a better financial future.
+                            </div>
+<div class="mt-md flex justify-between items-center text-on-surface-variant max-w-md">
+<button class="flex items-center gap-xs hover:text-primary transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-primary/10 rounded-full p-xs">chat_bubble</span>
+<span class="font-body-sm text-body-sm">24</span>
+</button>
+<button class="flex items-center gap-xs hover:text-secondary transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-secondary/10 rounded-full p-xs">repeat</span>
+<span class="font-body-sm text-body-sm">12</span>
+</button>
+<button class="flex items-center gap-xs hover:text-error transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-error/10 rounded-full p-xs">favorite</span>
+<span class="font-body-sm text-body-sm">148</span>
+</button>
+<button class="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors ml-auto">
+<span class="material-symbols-outlined text-[16px]">toll</span>
+<span class="font-label-sm text-label-sm">Tip 0.05 SOL</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Post 2 with Image -->
+<article class="bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 cursor-pointer">
+<div class="flex items-start gap-md">
+<div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Minimalist architectural profile image. Sharp lines, pure stark white background with a singular deep black geometric shape intersecting it. High contrast, technical luxury aesthetic, crisp rendering." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAY21TTKJN3Z0rfX1YtuXJsiCcg96K9J5etkmt6edrGPCVHql4DZYQ5OmAfiDaozaBwJk1igWnA44e4e9iZX_nsnyaQe3OwoUmXixVuwWLgrnogWymdWWO5YKddWk4QvxsoAEqfwAInVfWtAScIwjsKz47zhC5y2ZIXSwbJ82ajk-ogz61V9C8OckJDQznPtarMkGO11jzVIFupZMqnGOWFrgUm_cFxa3zTSo40dMtJNOJU27Uky2W9mg"/>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-sm">
+<span class="font-label-md text-label-md text-on-surface">Elena Rust</span>
+<span class="font-mono text-mono text-on-surface-variant">@ElN3...Q8z</span>
+<span class="text-on-surface-variant text-sm px-xs">•</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">5h</span>
+</div>
+<div class="mt-xs font-body-md text-body-md text-on-surface mb-md">
+                                The new terminal UI is incredibly snappy. Love the systematic approach to the design tokens here.
+                            </div>
+<div class="rounded-lg overflow-hidden border border-outline-variant mb-md h-48 bg-surface">
+<div class="bg-cover bg-center w-full h-full" data-alt="A highly detailed screenshot of a fictional, ultra-minimalist code editor or terminal interface. Deep zinc background, crisp white typography, and subtle electric blue accent lines. The design exudes institutional-grade reliability and high performance." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQk_kdX4UEsXThPInp2zp1aFULhD0rTYXmQmqPb-Jh5jYmKHtZTPhdFFR4RGt2Wqu8S0JczW4-_7C0CfXYZM4125SQ_CHCUzrxA8u_W_jybCf1b4YLE9y5lef5pXFngbTEprCiiMDzXmLhSqTHNRgV3pBej177IZFAqVcLAYAYXrlCTRQgNSHDP0epYTHDg-CR_TYg8Fcor9eoGXsCzegtkLoXPqj94AgQzp_swewJQgLEZr17eZUu7g')"></div>
+</div>
+<div class="flex justify-between items-center text-on-surface-variant max-w-md">
+<button class="flex items-center gap-xs hover:text-primary transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-primary/10 rounded-full p-xs">chat_bubble</span>
+<span class="font-body-sm text-body-sm">8</span>
+</button>
+<button class="flex items-center gap-xs hover:text-secondary transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-secondary/10 rounded-full p-xs">repeat</span>
+<span class="font-body-sm text-body-sm">3</span>
+</button>
+<button class="flex items-center gap-xs hover:text-error transition-colors group">
+<span class="material-symbols-outlined text-[20px] group-hover:bg-error/10 rounded-full p-xs">favorite</span>
+<span class="font-body-sm text-body-sm">42</span>
+</button>
+<button class="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors ml-auto">
+<span class="material-symbols-outlined text-[16px]">toll</span>
+<span class="font-label-sm text-label-sm">Tip 0.02 SOL</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- Right Column: Widgets -->
+<aside class="hidden xl:flex flex-col gap-lg w-80 sticky top-16 h-fit pt-xl">
+<!-- Trending Widget -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-md">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md px-xs">Trending in Web3</h3>
+<div class="flex flex-col gap-sm">
+<div class="px-xs py-sm hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors">
+<div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">DeFi</div>
+<div class="font-label-md text-label-md text-on-surface">Liquidity Pools V3</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">15.4K Posts</div>
+</div>
+<div class="px-xs py-sm hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors">
+<div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Infrastructure</div>
+<div class="font-label-md text-label-md text-on-surface">ZK Rollups</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">8.2K Posts</div>
+</div>
+<div class="px-xs py-sm hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors">
+<div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">NFTs</div>
+<div class="font-label-md text-label-md text-on-surface">Generative Architecture</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant mt-xs">4.1K Posts</div>
+</div>
+</div>
+<button class="w-full text-left font-label-md text-label-md text-primary mt-md px-xs hover:underline">Show more</button>
+</div>
+<!-- Who to Follow Widget -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-md">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md px-xs">Who to follow</h3>
+<div class="flex flex-col gap-md">
+<div class="flex items-center justify-between gap-sm">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A clean, monochrome headshot avatar suitable for a high-end financial professional. Stark white background, deep black silhouette, exuding authority and quiet competence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBaGaBXraswaEdNIK_CfM52O17zlW7jrqAHjbqql5vqHrH1tPuB3wW-R9qBnli6dcd3sy20d3IZJiKWyvoxzJPtL7r4vo8zpsnPmTJ_2gHS9Dzse1MnQ3Xj3BEmya28tdUm8gNps363vpjaTUgmhkR8a4nsctHXoXhelQM2xwpZfSfEb-2RPNoyzXKybt7Vp_ffEPj6VIp8QcLD5DJpW9HkaDz3Fgiy5nV5-BeYR-LdPwB2e6rRGcysQ"/>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface line-clamp-1">Venture Dao</div>
+<div class="font-mono text-mono text-on-surface-variant text-[12px] line-clamp-1">@VnDao...X1m</div>
+</div>
+</div>
+<button class="bg-inverse-surface text-inverse-on-surface px-md py-xs rounded-full font-label-sm text-label-sm hover:bg-opacity-90 transition-colors">
+                            Follow
+                        </button>
+</div>
+<div class="flex items-center justify-between gap-sm">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Abstract geometric tech logo for a profile picture. Minimalist interlocking shapes in grayscale. Utilitarian, sharp edges, institutional web3 style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaXtXM5pkzHO-ywb7ZDkE-FFbBcIZcbwyKye9pWpndmA6JSFCBY_7C6S1JxgnM-6opnKQ0x5i0nw8AUcHM9QrUPJ5Xotvc7Z3OE9T4TZ_1JMhRiC36DSNc_RSVWaFJ1TwCtjqBCNjF_cuU0R2sxCF3LcMiZhj0JsLa8zK6Ityl4TWWV4coCGg8H2U5ah4les-san6cqcgDuzp9YZxjN7ndUtJ2FmQxNwpRCEqNtikfc6b_KNzb7-TCWw"/>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface line-clamp-1">Protocol Labs</div>
+<div class="font-mono text-mono text-on-surface-variant text-[12px] line-clamp-1">@PcLb...9Kz</div>
+</div>
+</div>
+<button class="bg-inverse-surface text-inverse-on-surface px-md py-xs rounded-full font-label-sm text-label-sm hover:bg-opacity-90 transition-colors">
+                            Follow
+                        </button>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</body></html>
