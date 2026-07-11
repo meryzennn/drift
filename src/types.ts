@@ -16,6 +16,9 @@ export interface Post {
   repostsCount?: number;
   quotePostId?: string;
   quotePost?: Post;
+  isRepost?: boolean;
+  repostedBy?: string;
+  reposterWallet?: string;
 }
 
 export interface Comment {

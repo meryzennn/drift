@@ -16,8 +16,8 @@ export default function Feed({ posts }: FeedProps) {
 
   return (
     <div className="flex flex-col gap-md">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+      {posts.map((post, index) => (
+        <PostCard key={`${post.id}-${post.isRepost ? 'repost' : 'post'}-${index}`} post={post} />
       ))}
     </div>
   );

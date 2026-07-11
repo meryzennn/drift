@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import QuoteModal from "./QuoteModal";
 import { useEffect } from "react";
+import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 
 interface PostCardProps {
   post: Post;
@@ -39,6 +40,7 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const [isRepostedByMe, setIsRepostedByMe] = useState(false);
   const [localLikesCount, setLocalLikesCount] = useState(post.likes || 0);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount || 0);
+  const [localQuotePost, setLocalQuotePost] = useState<Post | undefined>(post.quotePost);
 
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
 
@@ -58,6 +60,26 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
       setIsRepostedByMe(false);
     }
   }, [publicKey, post.id]);
+
+  useEffect(() => {
+    if (post.quotePostId && !localQuotePost) {
+      const fetchQuote = async () => {
+        const { data } = await supabase
+          .from("posts")
+          .select(`
+            id, content, media_url, created_at, likes, author_wallet,
+            users!posts_author_wallet_fkey ( username, display_name, avatar_url )
+          `)
+          .eq("id", post.quotePostId)
+          .maybeSingle();
+        
+        if (data) {
+          setLocalQuotePost(mapPostData(data));
+        }
+      };
+      fetchQuote();
+    }
+  }, [post.quotePostId, localQuotePost]);
 
   const handleTipClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -243,6 +265,16 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
       className={`bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md transition-colors duration-200 relative ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
       onClick={handleCardClick}
     >
+      {post.isRepost && post.repostedBy && (
+        <div className="flex items-center gap-xs text-on-surface-variant font-label-sm mb-[-8px]">
+          <span className="material-symbols-outlined text-[16px]">repeat</span>
+          <span>
+            {connected && publicKey && post.reposterWallet === publicKey.toString() 
+              ? "You" 
+              : post.repostedBy} reposted
+          </span>
+        </div>
+      )}
       <div className="flex items-start gap-md">
         <Link 
           href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
@@ -353,38 +385,44 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             </div>
           )}
           
-          {post.quotePost && (
+          {/* QUOTE POST EMBED */}
+          {localQuotePost && (
             <div 
               className="mt-md border border-outline-variant rounded-xl p-md bg-surface-container hover:bg-surface-container-highest transition-colors cursor-pointer flex flex-col gap-sm"
-              onClick={(e) => { e.stopPropagation(); router.push(`/post/${post.quotePost!.id}`); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/post/${localQuotePost.id}`);
+              }}
             >
               <div className="flex items-center gap-sm">
-                <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                  {post.quotePost.authorProfile?.avatarUrl ? (
+                <div className="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 overflow-hidden border border-outline-variant">
+                  {localQuotePost.authorProfile?.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.quotePost.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    <img src={localQuotePost.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    post.quotePost.authorPublicKey.slice(0, 2)
+                    <span className="material-symbols-outlined text-[14px] text-outline">person</span>
                   )}
                 </div>
-                <span className="font-label-md text-on-surface">
-                  {post.quotePost.authorProfile?.displayName || "Anonymous User"}
-                </span>
-                <span className="font-mono text-[12px] text-on-surface-variant">
-                  @{post.quotePost.authorProfile?.username || formatAddress(post.quotePost.authorPublicKey)}
-                </span>
-                <span className="text-on-surface-variant text-sm px-xs">•</span>
-                <span className="font-body-sm text-on-surface-variant" suppressHydrationWarning>
-                  {formatDistanceToNow(new Date(post.quotePost.createdAt))}
-                </span>
+                <div className="flex items-center gap-xs text-sm">
+                  <span className="font-bold text-on-surface truncate max-w-[120px]">
+                    {localQuotePost.authorProfile?.displayName || "Unknown"}
+                  </span>
+                  <span className="text-on-surface-variant truncate max-w-[100px]">
+                    @{localQuotePost.authorProfile?.username || formatAddress(localQuotePost.authorPublicKey)}
+                  </span>
+                  <span className="text-on-surface-variant">·</span>
+                  <span className="text-on-surface-variant shrink-0">{formatDistanceToNow(new Date(localQuotePost.createdAt))}</span>
+                </div>
               </div>
-              <div className="font-body-sm text-on-surface line-clamp-3">
-                {post.quotePost.content}
+              
+              <div className="text-on-surface font-body-md break-words line-clamp-3">
+                {localQuotePost.content}
               </div>
-              {post.quotePost.imageUrl && (
-                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[200px] mt-xs">
+
+              {localQuotePost.imageUrl && (
+                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[200px] mt-xs flex items-center justify-center bg-black/20">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={post.quotePost.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={localQuotePost.imageUrl} alt="" className="w-full h-full object-contain" />
                 </div>
               )}
             </div>
@@ -399,14 +437,14 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             <div className="relative">
               <button 
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsRepostMenuOpen(!isRepostMenuOpen); setIsMenuOpen(false); }}
-                className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-secondary" : "hover:text-secondary"}`}
+                className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-[#00BA7C]" : "hover:text-[#00BA7C]"}`}
               >
-                <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-secondary/10 ${isRepostedByMe ? "bg-secondary/10" : ""}`}>repeat</span>
+                <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-[#00BA7C]/10 ${isRepostedByMe ? "bg-[#00BA7C]/10" : ""}`}>repeat</span>
                 <span className="font-body-sm">{localRepostsCount}</span>
               </button>
               
               {isRepostMenuOpen && (
-                <div className="absolute left-0 top-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute left-0 bottom-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
                   <button 
                     onClick={handleRepostClick}
                     className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
@@ -425,9 +463,9 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             
             <button 
               onClick={handleLikeToggle}
-              className={`flex items-center gap-xs transition-colors group ${isLikedByMe ? "text-error" : "hover:text-error"}`}
+              className={`flex items-center gap-xs transition-colors group ${isLikedByMe ? "text-[#F91880]" : "hover:text-[#F91880]"}`}
             >
-              <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-error/10 ${isLikedByMe ? "bg-error/10" : ""}`} style={{ fontVariationSettings: isLikedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+              <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-[#F91880]/10 ${isLikedByMe ? "bg-[#F91880]/10" : ""}`} style={{ fontVariationSettings: isLikedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
               <span className="font-body-sm">{localLikesCount}</span>
             </button>
             

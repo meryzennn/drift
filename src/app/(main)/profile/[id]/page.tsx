@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Post } from "@/types";
+import { Post, Comment } from "@/types";
 import PostCard from "@/components/PostCard";
+import CommentCard from "@/components/CommentCard";
 import { useState, useEffect, use } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
@@ -19,10 +20,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [reposts, setReposts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "reposts" | "media">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media">("posts");
   const [notFound, setNotFound] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -65,8 +66,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         .eq("author_wallet", wallet)
         .order("created_at", { ascending: false });
 
+      let allPosts: Post[] = [];
+
       if (postsData) {
-        setPosts(postsData.map(mapPostData));
+        allPosts = [...postsData.map(mapPostData)];
       }
 
       // Fetch user reposts
@@ -84,8 +87,44 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       if (repostsData) {
         const formattedReposts: Post[] = repostsData
           .filter((r: any) => r.posts)
-          .map((r: any) => mapPostData(r.posts));
-        setReposts(formattedReposts);
+          .map((r: any) => ({
+            ...mapPostData(r.posts),
+            isRepost: true,
+            repostedBy: userData.display_name || userData.username || "Someone",
+            reposterWallet: userData.wallet_address,
+            createdAt: r.created_at // Use repost date for sorting
+          }));
+        allPosts = [...allPosts, ...formattedReposts];
+      }
+
+      allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setPosts(allPosts);
+
+      // Fetch user comments
+      const { data: commentsData } = await supabase
+        .from("comments")
+        .select(`
+          id, content, media_url, created_at, post_id, author_wallet,
+          users!comments_author_wallet_fkey ( username, display_name, avatar_url )
+        `)
+        .eq("author_wallet", wallet)
+        .order("created_at", { ascending: false });
+
+      if (commentsData) {
+        const formattedComments: Comment[] = commentsData.map((c: any) => ({
+          id: c.id,
+          postId: c.post_id,
+          authorPublicKey: c.author_wallet,
+          content: c.content,
+          imageUrl: c.media_url,
+          createdAt: c.created_at,
+          authorProfile: c.users ? {
+            username: c.users.username,
+            displayName: c.users.display_name,
+            avatarUrl: c.users.avatar_url,
+          } : undefined,
+        }));
+        setComments(formattedComments);
       }
 
       // Fetch total tipped received
@@ -311,10 +350,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           Posts
         </button>
         <button 
-          onClick={() => setActiveTab("reposts")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "reposts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          onClick={() => setActiveTab("replies")}
+          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "replies" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
         >
-          Reposts
+          Replies
         </button>
         <button 
           onClick={() => setActiveTab("media")}
@@ -331,20 +370,20 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             <div className="text-center py-xl text-on-surface-variant font-body-md">User hasn't posted anything yet.</div>
           ) : (
             <div className="flex flex-col gap-md">
-              {posts.map((post) => (
-                <PostCard key={post.id} post={post} />
+              {posts.map((post, index) => (
+                <PostCard key={`post-${post.id}-${index}`} post={post} />
               ))}
             </div>
           )
         )}
         
-        {activeTab === "reposts" && (
-          reposts.length === 0 ? (
-            <div className="text-center py-xl text-on-surface-variant font-body-md">User hasn't reposted anything yet.</div>
+        {activeTab === "replies" && (
+          comments.length === 0 ? (
+            <div className="text-center py-xl text-on-surface-variant font-body-md">User hasn't replied to anything yet.</div>
           ) : (
             <div className="flex flex-col gap-md">
-              {reposts.map((post) => (
-                <PostCard key={post.id} post={post} />
+              {comments.map((comment, index) => (
+                <CommentCard key={`comment-${comment.id}-${index}`} comment={comment} />
               ))}
             </div>
           )
@@ -355,8 +394,8 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             <div className="text-center py-xl text-on-surface-variant font-body-md">No media posts found.</div>
           ) : (
             <div className="flex flex-col gap-md">
-              {posts.filter(p => p.imageUrl).map((post) => (
-                <PostCard key={post.id} post={post} />
+              {posts.filter(p => p.imageUrl).map((post, index) => (
+                <PostCard key={`media-${post.id}-${index}`} post={post} />
               ))}
             </div>
           )

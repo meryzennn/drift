@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
@@ -18,6 +18,21 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
   const { publicKey } = useWallet();
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Fetch current user's profile for the avatar
+  useEffect(() => {
+    if (publicKey && isOpen) {
+      supabase
+        .from("users")
+        .select("*")
+        .eq("wallet_address", publicKey.toString())
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setUserProfile(data);
+        });
+    }
+  }, [publicKey, isOpen]);
 
   if (!isOpen) return null;
   
@@ -50,15 +65,7 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
 
       if (postError) throw postError;
 
-      // Also track it as a repost for the current user, so it increments the reposts count
-      await supabase.from("reposts").insert([
-        {
-          user_wallet: publicKey.toString(),
-          post_id: quotedPost.id,
-        }
-      ]).select().single();
-      // Ignore unique constraint error if they already reposted
-      
+
       toast.success("Quoted successfully!");
       setContent("");
       onClose();
@@ -100,10 +107,15 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
         </div>
 
         <div className="p-md flex gap-md">
-          <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-outline">person</span>
+          <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 overflow-hidden border border-outline-variant">
+            {userProfile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={userProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="material-symbols-outlined text-outline">person</span>
+            )}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <textarea 
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -138,9 +150,9 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
                 {quotedPost.content}
               </div>
               {quotedPost.imageUrl && (
-                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[150px] mt-xs">
+                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[300px] mt-xs flex items-center justify-center bg-black/20">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={quotedPost.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={quotedPost.imageUrl} alt="" className="w-full h-full object-contain" />
                 </div>
               )}
             </div>

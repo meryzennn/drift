@@ -15,6 +15,7 @@ export const POST_SELECT_QUERY = `
   ),
   comments ( count ),
   reposts ( count ),
+  quotes:posts!quote_post_id ( count ),
   quote_post:posts!quote_post_id (
     id,
     content,
@@ -46,7 +47,7 @@ export function mapPostData(p: any): Post {
       avatarUrl: p.users.avatar_url,
     } : undefined,
     commentsCount: p.comments?.[0]?.count ?? 0,
-    repostsCount: p.reposts?.[0]?.count ?? 0,
+    repostsCount: (p.reposts?.[0]?.count ?? 0) + (p.quotes?.[0]?.count ?? 0),
     quotePostId: p.quote_post_id,
     quotePost: quoteData ? {
       id: quoteData.id,

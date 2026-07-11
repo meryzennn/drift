@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 
 interface CommentCardProps {
   comment: Comment;
@@ -15,6 +16,7 @@ interface CommentCardProps {
 
 export default function CommentCard({ comment }: CommentCardProps) {
   const { publicKey, connected } = useWallet();
+  const router = useRouter();
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -99,7 +101,13 @@ export default function CommentCard({ comment }: CommentCardProps) {
   if (isDeleted) return null;
 
   return (
-    <article className="bg-transparent border-b border-outline-variant p-md flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 relative" onClick={() => setIsMenuOpen(false)}>
+    <article 
+      className="bg-transparent border-b border-outline-variant p-md flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 relative cursor-pointer" 
+      onClick={() => { 
+        setIsMenuOpen(false); 
+        router.push(`/post/${comment.postId}`); 
+      }}
+    >
       <div className="flex items-start gap-md">
         <Link 
           href={`/profile/${comment.authorProfile?.username || comment.authorPublicKey}`} 
