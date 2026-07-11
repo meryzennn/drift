@@ -246,9 +246,6 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.user !== publicKey.toString()) {
           setIsOtherTyping(payload.payload.isTyping);
-          if (payload.payload.isTyping) {
-            scrollToBottom();
-          }
         }
       })
       .subscribe();
