@@ -21,6 +21,8 @@ export interface Post {
   reposterWallet?: string;
   replyToPostId?: string;
   replyToUsername?: string;
+  totalTips?: number;
+  topTippers?: { from_wallet: string; amount: number; username?: string; avatar_url?: string }[];
 }
 
 export interface Comment {
@@ -52,5 +54,6 @@ export interface AppNotification {
   };
   post?: {
     content: string;
+    reply_to_post_id?: string;
   };
 }

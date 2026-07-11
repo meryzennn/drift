@@ -14,8 +14,7 @@ interface SendTipModalProps {
   onConfirm: (amount: number) => void;
 }
 
-const PRESET_AMOUNTS = [0.05, 0.1, 0.5];
-const SOL_TO_USD = 150; // Mock conversion rate
+const PRESET_AMOUNTS_SOL = [0.05, 0.1, 0.5];
 
 export default function SendTipModal({
   isOpen,
@@ -26,12 +25,41 @@ export default function SendTipModal({
   onConfirm,
 }: SendTipModalProps) {
   const [selectedPreset, setSelectedPreset] = useState<number | null>(0.1);
-  const [customAmount, setCustomAmount] = useState<string>("0.1");
+  const [solAmount, setSolAmount] = useState<string>("0.1");
+  const [usdAmount, setUsdAmount] = useState<string>("");
+  const [inputMode, setInputMode] = useState<"sol" | "usd">("sol");
+  const [solPrice, setSolPrice] = useState<number | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   
   const { connected, publicKey } = useWallet();
   const { connection } = useConnection();
   const [balance, setBalance] = useState<number>(0);
+
+  // Fetch live SOL price from Binance (more reliable, no rate limit for public)
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch(
+          "https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT"
+        );
+        const data = await res.json();
+        if (data?.price) {
+          setSolPrice(parseFloat(data.price));
+        }
+      } catch {
+        // fallback: try Jupiter
+        try {
+          const res2 = await fetch("https://price.jup.ag/v6/price?ids=SOL");
+          const data2 = await res2.json();
+          const price = data2?.data?.SOL?.price;
+          if (price) setSolPrice(price);
+        } catch {
+          setSolPrice(null);
+        }
+      }
+    };
+    fetchPrice();
+  }, []);
 
   useEffect(() => {
     if (isOpen && connected && publicKey) {
@@ -54,7 +82,9 @@ export default function SendTipModal({
   useEffect(() => {
     if (isOpen) {
       setSelectedPreset(0.1);
-      setCustomAmount("0.1");
+      setSolAmount("0.1");
+      setUsdAmount(solPrice ? (0.1 * solPrice).toFixed(2) : "");
+      setInputMode("sol");
     }
   }, [isOpen]);
 
@@ -62,20 +92,37 @@ export default function SendTipModal({
 
   const handlePresetClick = (amount: number) => {
     setSelectedPreset(amount);
-    setCustomAmount(amount.toString());
+    setSolAmount(amount.toString());
+    if (solPrice) setUsdAmount((amount * solPrice).toFixed(2));
+    setInputMode("sol");
   };
 
-  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Allow empty string, or numbers with up to 9 decimals
-    if (value === "" || /^\d*\.?\d{0,9}$/.test(value)) {
-      setCustomAmount(value);
+  const handleSolInput = (val: string) => {
+    if (val === "" || /^\d*\.?\d{0,9}$/.test(val)) {
+      setSolAmount(val);
       setSelectedPreset(null);
+      if (solPrice && val !== "") {
+        setUsdAmount((parseFloat(val) * solPrice).toFixed(2));
+      } else {
+        setUsdAmount("");
+      }
+    }
+  };
+
+  const handleUsdInput = (val: string) => {
+    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+      setUsdAmount(val);
+      setSelectedPreset(null);
+      if (solPrice && val !== "") {
+        setSolAmount((parseFloat(val) / solPrice).toFixed(6));
+      } else {
+        setSolAmount("");
+      }
     }
   };
 
   const handleConfirm = () => {
-    const amountNum = parseFloat(customAmount);
+    const amountNum = parseFloat(solAmount);
     if (!isNaN(amountNum) && amountNum > 0) {
       onConfirm(amountNum);
     }
@@ -86,15 +133,15 @@ export default function SendTipModal({
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
-  const parsedAmount = parseFloat(customAmount) || 0;
-  const isSufficientBalance = parsedAmount <= balance;
-  const isValidAmount = parsedAmount > 0;
+  const parsedSol = parseFloat(solAmount) || 0;
+  const isSufficientBalance = parsedSol <= balance;
+  const isValidAmount = parsedSol > 0;
   const canSubmit = connected && isValidAmount && isSufficientBalance;
 
   const modalContent = (
     <div 
       className="fixed inset-0 z-[100] flex items-center justify-center p-md"
-      onClick={(e) => e.stopPropagation()} // Stop bubbling to PostCard
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Dimmed Backdrop */}
       <div 
@@ -130,6 +177,12 @@ export default function SendTipModal({
             <span className="font-body-sm text-body-sm text-on-surface-variant">
               to <span className="font-label-md text-label-md text-on-surface">@{formatAddress(recipientAddress)}</span>
             </span>
+            {solPrice && (
+              <span className="ml-auto font-body-sm text-on-surface-variant text-[11px] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block animate-pulse"></span>
+                1 SOL = ${solPrice.toLocaleString()}
+              </span>
+            )}
           </div>
         </div>
 
@@ -138,10 +191,10 @@ export default function SendTipModal({
           {/* Preset Selection */}
           <div>
             <label className="block font-label-sm text-label-sm text-on-surface-variant mb-md uppercase tracking-wider">
-              Select Amount
+              Quick Select
             </label>
             <div className="grid grid-cols-3 gap-sm">
-              {PRESET_AMOUNTS.map((amount) => {
+              {PRESET_AMOUNTS_SOL.map((amount) => {
                 const isSelected = selectedPreset === amount;
                 return (
                   <button
@@ -157,7 +210,7 @@ export default function SendTipModal({
                       {amount} SOL
                     </span>
                     <span className={`font-body-sm text-body-sm mt-xs ${isSelected ? "text-primary/70" : "text-on-surface-variant"}`}>
-                      ~${(amount * SOL_TO_USD).toFixed(2)}
+                      {solPrice ? `~$${(amount * solPrice).toFixed(2)}` : "—"}
                     </span>
                   </button>
                 );
@@ -165,32 +218,79 @@ export default function SendTipModal({
             </div>
           </div>
 
-          {/* Custom Amount Input */}
+          {/* Dual Input with Toggle */}
           <div>
-            <label className="block font-label-sm text-label-sm text-on-surface-variant mb-md uppercase tracking-wider">
-              Custom Amount
-            </label>
-            <div className="relative flex items-center border-b border-outline-variant pb-sm focus-within:border-primary-container transition-colors">
-              <input 
-                className="w-full bg-transparent border-none p-0 font-display text-display text-on-surface focus:ring-0 placeholder-outline" 
-                placeholder="0.00" 
-                type="text" 
-                value={customAmount}
-                onChange={handleCustomAmountChange}
-              />
-              <button 
-                onClick={(e) => { e.preventDefault(); handlePresetClick(balance); }}
-                className="absolute right-0 font-label-md text-label-md text-primary hover:text-primary-container transition-colors cursor-pointer bg-transparent border-none"
-              >
-                MAX
-              </button>
+            <div className="flex items-center justify-between mb-md">
+              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                Custom Amount
+              </label>
+              {solPrice && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setInputMode(prev => prev === "sol" ? "usd" : "sol");
+                  }}
+                  className="flex items-center gap-xs text-primary text-[11px] font-label-sm border border-primary/30 rounded-full px-2 py-0.5 hover:bg-primary/10 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[13px]">swap_horiz</span>
+                  {inputMode === "sol" ? "Switch to USD" : "Switch to SOL"}
+                </button>
+              )}
             </div>
-            <div className="mt-sm flex justify-between items-center">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
-                ≈ ${(parsedAmount * SOL_TO_USD).toFixed(2)} USD
-              </span>
+
+            {/* SOL Input */}
+            {inputMode === "sol" && (
+              <div>
+                <div className="relative flex items-center border-b border-outline-variant pb-sm focus-within:border-primary-container transition-colors">
+                  <input 
+                    className="w-full bg-transparent border-none p-0 font-display text-display text-on-surface focus:ring-0 placeholder-outline" 
+                    placeholder="0.00" 
+                    type="text" 
+                    value={solAmount}
+                    onChange={(e) => handleSolInput(e.target.value)}
+                    autoFocus
+                  />
+                  <span className="font-label-lg text-on-surface-variant mr-sm">SOL</span>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); handlePresetClick(balance); }}
+                    className="font-label-md text-label-md text-primary hover:text-primary-container transition-colors cursor-pointer bg-transparent border-none"
+                  >
+                    MAX
+                  </button>
+                </div>
+                {solPrice && (
+                  <p className="font-body-sm text-on-surface-variant mt-xs">
+                    ≈ <span className="text-on-surface">${(parsedSol * solPrice).toFixed(2)} USD</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* USD Input */}
+            {inputMode === "usd" && (
+              <div>
+                <div className="relative flex items-center border-b border-outline-variant pb-sm focus-within:border-primary-container transition-colors">
+                  <span className="font-display text-display text-on-surface-variant mr-1">$</span>
+                  <input 
+                    className="w-full bg-transparent border-none p-0 font-display text-display text-on-surface focus:ring-0 placeholder-outline" 
+                    placeholder="0.00" 
+                    type="text" 
+                    value={usdAmount}
+                    onChange={(e) => handleUsdInput(e.target.value)}
+                    autoFocus
+                  />
+                  <span className="font-label-lg text-on-surface-variant mr-sm">USD</span>
+                </div>
+                <p className="font-body-sm text-on-surface-variant mt-xs">
+                  ≈ <span className="text-on-surface">{parseFloat(solAmount || "0").toFixed(6)} SOL</span>
+                </p>
+              </div>
+            )}
+
+            <div className="mt-sm flex justify-end">
               <span className={`font-body-sm text-body-sm ${isSufficientBalance ? "text-on-surface-variant" : "text-error"}`}>
-                Bal: {balance.toFixed(2)} SOL
+                Balance: {balance.toFixed(4)} SOL
+                {solPrice && ` (~$${(balance * solPrice).toFixed(2)})`}
               </span>
             </div>
           </div>
@@ -209,7 +309,7 @@ export default function SendTipModal({
             disabled={!canSubmit}
             className="flex-1 flex justify-center items-center gap-sm bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-label-md text-label-md py-sm px-lg rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 border-none cursor-pointer"
           >
-            <span>{!connected ? "Connect Wallet" : "Confirm & Send"}</span>
+            <span>{!connected ? "Connect Wallet" : `Send ${parsedSol > 0 ? parsedSol.toFixed(4) : ""} SOL`}</span>
             {connected && (
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>send</span>
             )}

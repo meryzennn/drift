@@ -44,8 +44,39 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
   const [localLikesCount, setLocalLikesCount] = useState(post.likes || 0);
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount || 0);
   const [localQuotePost, setLocalQuotePost] = useState<Post | undefined>(post.quotePost);
+  const [tipSummary, setTipSummary] = useState<{ total: number; tippers: { username: string; avatar_url?: string; amount: number }[] } | null>(null);
+  const [showTipSummary, setShowTipSummary] = useState(false);
+  const [isFetchingTips, setIsFetchingTips] = useState(false);
 
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
+
+  const fetchTipSummary = async () => {
+    if (tipSummary || isFetchingTips) return;
+    setIsFetchingTips(true);
+    try {
+      // Fetch tips made to this post's author around this post's creation time
+      const { data } = await supabase
+        .from("notifications")
+        .select("actor_wallet, amount, actor:users!notifications_actor_wallet_fkey(username, avatar_url)")
+        .eq("user_wallet", post.authorPublicKey)
+        .eq("type", "tip")
+        .eq("post_id", post.id);
+
+      if (data && data.length > 0) {
+        const total = data.reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+        const tippers = data.map((t: any) => ({
+          username: t.actor?.username || t.actor_wallet.slice(0, 6) + "...",
+          avatar_url: t.actor?.avatar_url,
+          amount: t.amount || 0,
+        }));
+        setTipSummary({ total, tippers });
+      } else {
+        setTipSummary({ total: 0, tippers: [] });
+      }
+    } finally {
+      setIsFetchingTips(false);
+    }
+  };
 
   useEffect(() => {
     if (publicKey) {
@@ -534,13 +565,43 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
               <span className="font-body-sm">{localLikesCount}</span>
             </button>
             
-            <button 
-              onClick={handleTipClick}
-              className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors ml-auto"
-            >
-              <span className="material-symbols-outlined text-[16px]">toll</span>
-              <span className="font-label-sm">Send Tip</span>
-            </button>
+            <div className="relative ml-auto" onMouseEnter={() => { setShowTipSummary(true); fetchTipSummary(); }} onMouseLeave={() => setShowTipSummary(false)}>
+              <button 
+                onClick={handleTipClick}
+                className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">toll</span>
+                <span className="font-label-sm">
+                  {tipSummary && tipSummary.total > 0 ? `${tipSummary.total} SOL` : "Send Tip"}
+                </span>
+              </button>
+
+              {/* Tip Summary Tooltip */}
+              {showTipSummary && tipSummary && tipSummary.tippers.length > 0 && (
+                <div className="absolute bottom-full right-0 mb-2 w-56 bg-surface-container-high border border-outline-variant rounded-xl shadow-2xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-md py-sm border-b border-outline-variant/50">
+                    <p className="font-label-sm text-on-surface-variant">Tips received</p>
+                    <p className="font-headline-sm font-bold text-primary">{tipSummary.total.toFixed(3)} SOL</p>
+                  </div>
+                  <div className="flex flex-col max-h-40 overflow-y-auto">
+                    {tipSummary.tippers.map((t, i) => (
+                      <div key={i} className="flex items-center gap-sm px-md py-xs hover:bg-surface-container-highest transition-colors">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 overflow-hidden shrink-0">
+                          {t.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="material-symbols-outlined text-[14px] text-primary flex items-center justify-center h-full">person</span>
+                          )}
+                        </div>
+                        <span className="font-body-sm text-on-surface flex-1 truncate">@{t.username}</span>
+                        <span className="font-label-sm text-primary shrink-0">{t.amount} SOL</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
