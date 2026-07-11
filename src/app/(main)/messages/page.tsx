@@ -14,6 +14,7 @@ export default function MessagesHub() {
   const router = useRouter();
   
   const [conversations, setConversations] = useState<any[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
@@ -48,21 +49,37 @@ export default function MessagesHub() {
     try {
       const wallet = publicKey.toString();
       
-      const { data, error } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          user1_wallet,
-          user2_wallet,
-          last_message_at,
-          user1:users!conversations_user1_wallet_fkey(wallet_address, username, display_name, avatar_url),
-          user2:users!conversations_user2_wallet_fkey(wallet_address, username, display_name, avatar_url)
-        `)
-        .or(`user1_wallet.eq.${wallet},user2_wallet.eq.${wallet}`)
-        .order('last_message_at', { ascending: false });
+      const [{ data }, { data: notifData }] = await Promise.all([
+        supabase
+          .from('conversations')
+          .select(`
+            id,
+            user1_wallet,
+            user2_wallet,
+            last_message_at,
+            user1:users!conversations_user1_wallet_fkey(wallet_address, username, display_name, avatar_url),
+            user2:users!conversations_user2_wallet_fkey(wallet_address, username, display_name, avatar_url)
+          `)
+          .or(`user1_wallet.eq.${wallet},user2_wallet.eq.${wallet}`)
+          .order('last_message_at', { ascending: false }),
+        
+        supabase
+          .from('notifications')
+          .select('actor_wallet')
+          .eq('user_wallet', wallet)
+          .eq('type', 'message')
+          .eq('is_read', false)
+      ]);
 
-      if (error) throw error;
-      setConversations(data || []);
+      if (data) setConversations(data);
+      
+      const counts: Record<string, number> = {};
+      if (notifData) {
+        notifData.forEach((n) => {
+          counts[n.actor_wallet] = (counts[n.actor_wallet] || 0) + 1;
+        });
+      }
+      setUnreadCounts(counts);
     } catch (err) {
       console.error(err);
     } finally {
@@ -190,16 +207,26 @@ export default function MessagesHub() {
                 
                 <div className="flex flex-col flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-label-lg font-bold text-on-surface truncate group-hover:text-primary transition-colors">
+                    <span className="font-label-lg font-bold text-on-surface truncate group-hover:text-primary transition-colors flex items-center gap-2">
                       {otherUser.display_name}
+                      {unreadCounts[otherUser.wallet_address] > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-error inline-block shrink-0"></span>
+                      )}
                     </span>
                     <span className="font-body-sm text-on-surface-variant shrink-0 ml-2">
                       {new Date(convo.last_message_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
-                  <span className="font-body-md text-on-surface-variant truncate">
-                    @{otherUser.username}
-                  </span>
+                  <div className="flex justify-between items-center w-full">
+                    <span className={`font-body-md truncate ${unreadCounts[otherUser.wallet_address] > 0 ? "text-on-surface font-bold" : "text-on-surface-variant"}`}>
+                      @{otherUser.username}
+                    </span>
+                    {unreadCounts[otherUser.wallet_address] > 0 && (
+                      <div className="bg-error text-on-error text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                        {unreadCounts[otherUser.wallet_address]}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Link>
             );

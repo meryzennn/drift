@@ -4,22 +4,27 @@ import { supabase } from "@/utils/supabase";
 
 export function useUnreadNotifications() {
   const { publicKey, connected } = useWallet();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState({ notifications: 0, messages: 0 });
 
   useEffect(() => {
     if (!connected || !publicKey) {
-      setUnreadCount(0);
+      setUnreadCount({ notifications: 0, messages: 0 });
       return;
     }
 
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_wallet", publicKey.toString())
-        .eq("is_read", false);
+      const [
+        { count: notifCount },
+        { count: msgCount }
+      ] = await Promise.all([
+        supabase.from("notifications").select("*", { count: "exact", head: true }).eq("user_wallet", publicKey.toString()).eq("is_read", false).neq("type", "message"),
+        supabase.from("notifications").select("*", { count: "exact", head: true }).eq("user_wallet", publicKey.toString()).eq("is_read", false).eq("type", "message")
+      ]);
         
-      setUnreadCount(count || 0);
+      setUnreadCount({ 
+        notifications: notifCount || 0, 
+        messages: msgCount || 0 
+      });
     };
 
     fetchCount();

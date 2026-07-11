@@ -71,6 +71,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           toast.error("User hasn't enabled DMs yet (No pubkey)");
         }
         
+        // Mark message notifications as read
+        await supabase
+          .from("notifications")
+          .update({ is_read: true })
+          .eq("user_wallet", publicKey.toString())
+          .eq("actor_wallet", other.wallet_address)
+          .eq("type", "message");
+        
         fetchMessages(other.chat_pubkey);
       } catch (err) {
         console.error(err);
@@ -171,6 +179,15 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         last_message_at: new Date().toISOString()
       }).eq("id", convoId);
       
+      // Send notification to the other user
+      if (otherUser?.wallet_address) {
+        await supabase.from("notifications").insert([{
+          user_wallet: otherUser.wallet_address,
+          actor_wallet: publicKey.toString(),
+          type: "message"
+        }]);
+      }
+      
     } catch (err) {
       console.error(err);
       toast.error("Failed to send");
@@ -194,7 +211,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   if (!publicKey || !mySecret) return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px-48px)] w-full bg-surface-container-lowest border border-outline-variant/50 rounded-2xl overflow-hidden shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+    <div className="flex flex-col h-[100dvh] md:h-[calc(100vh-112px)] w-full bg-surface-container-lowest border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
         <button onClick={() => router.push("/messages")} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
@@ -298,7 +315,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {/* Input Area */}
-      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0 mb-16 lg:mb-0">
+      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0 mb-16 md:mb-0">
         {!otherPubkey ? (
           <div className="text-center p-2 text-error font-label-md bg-error/10 rounded-xl">
             User hasn't enabled DMs yet. They need to unlock DMs in their inbox first.

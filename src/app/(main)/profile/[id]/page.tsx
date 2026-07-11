@@ -416,10 +416,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                 {isMutualFollow && (
                   <button 
                     onClick={handleMessageClick}
-                    className="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-high rounded-lg font-label-md transition-colors flex items-center gap-2"
+                    className="w-[38px] h-[38px] border border-outline-variant text-on-surface hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center shrink-0"
+                    title="Send Message"
                   >
-                    <span className="material-symbols-outlined text-[18px]">mail</span>
-                    Message
+                    <span className="material-symbols-outlined text-[20px]">mail</span>
                   </button>
                 )}
                 <button 

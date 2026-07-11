@@ -7,7 +7,7 @@ import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 export default function NavLinks() {
   const pathname = usePathname();
   const router = useRouter();
-  const unreadCount = useUnreadNotifications();
+  const { notifications: notifCount, messages: msgCount } = useUnreadNotifications();
 
   const links = [
     { href: "/", label: "Home", icon: "home" },
@@ -46,9 +46,14 @@ export default function NavLinks() {
               >
                 {link.icon}
               </span>
-              {link.href === "/notifications" && unreadCount > 0 && (
+              {link.href === "/notifications" && notifCount > 0 && (
                 <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-error text-on-error rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-background animate-bounce shadow-sm">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {notifCount > 9 ? "9+" : notifCount}
+                </div>
+              )}
+              {link.href === "/messages" && msgCount > 0 && (
+                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-error text-on-error rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-background animate-bounce shadow-sm">
+                  {msgCount > 9 ? "9+" : msgCount}
                 </div>
               )}
             </div>

@@ -322,7 +322,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
 
   const renderActionBar = (isViewer = false) => (
     <div className={`${isViewer ? 'p-4 pb-6 flex justify-center w-full' : 'mt-md w-full'}`}>
-      <div className={`flex items-center gap-sm w-full ${isViewer ? 'max-w-[500px] text-white/90 px-xs' : 'text-on-surface-variant'}`}>
+      <div className={`flex flex-wrap items-center justify-start gap-4 sm:gap-8 w-full ${isViewer ? 'max-w-[500px] text-white/90 px-xs' : 'text-on-surface-variant'}`}>
         {/* Comments */}
         <button className={`flex items-center gap-xs transition-colors group shrink-0 ${isViewer ? 'hover:text-white' : 'hover:text-primary'}`}>
           <span className={`material-symbols-outlined text-[18px] rounded-full p-xs ${isViewer ? 'group-hover:bg-white/10' : 'group-hover:bg-primary/10'}`}>chat_bubble</span>
@@ -370,7 +370,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
         </button>
         
         {/* Tip area & Share */}
-        <div className="ml-auto flex items-center gap-xs shrink-0">
+        <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); fetchTipSummary(); setIsTipLeaderboardOpen(true); }}
             className={`flex items-center justify-center border rounded-full p-xs transition-colors ${tipSummary && tipSummary.total > 0 ? (isViewer ? "text-primary border-primary/40 bg-primary/20" : "text-primary border-primary/40 bg-primary/5") : (isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary/10")}`}
@@ -382,7 +382,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
             className={`flex items-center gap-xs border rounded-full px-sm py-xs transition-colors ${isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary-container/10"}`}
           >
             <span className="material-symbols-outlined text-[15px]">send</span>
-            <span className="font-label-sm text-[12px]">Tip</span>
+            <span className="hidden sm:inline font-label-sm text-[12px]">Tip</span>
           </button>
         </div>
       </div>
