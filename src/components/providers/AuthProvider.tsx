@@ -44,5 +44,26 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     checkUser();
   }, [connected, publicKey, pathname, router]);
 
+  // Heartbeat to update last_seen
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+    
+    const updatePresence = async () => {
+      try {
+        await supabase
+          .from("users")
+          .update({ last_seen: new Date().toISOString() })
+          .eq("wallet_address", publicKey.toString());
+      } catch (err) {
+        // Ignore if column doesn't exist yet or other network errors
+      }
+    };
+    
+    updatePresence();
+    const interval = setInterval(updatePresence, 30000); // Every 30s
+    
+    return () => clearInterval(interval);
+  }, [connected, publicKey]);
+
   return <>{children}</>;
 }

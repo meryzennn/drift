@@ -11,6 +11,25 @@ import MediaPickerModal from "@/components/MediaPickerModal";
 import SendTipModal from "@/components/SendTipModal";
 import { sendTip } from "@/utils/solanaUtils";
 
+const getLastSeenText = (lastSeenISO: string | undefined) => {
+  if (!lastSeenISO) return null;
+  const lastSeenDate = new Date(lastSeenISO);
+  const now = new Date();
+  const diffMs = now.getTime() - lastSeenDate.getTime();
+  
+  // Show online if active within the last 60 seconds
+  if (diffMs < 60000) return "Online";
+  
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `Last seen ${diffMins} mins ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `Last seen ${diffHours} hours ago`;
+  if (diffHours < 48) return "Last seen yesterday";
+  
+  return `Last seen ${lastSeenDate.toLocaleDateString()}`;
+};
+
 export default function ChatRoom({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const convoId = unwrappedParams.id;
@@ -30,8 +49,12 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [isTipOpen, setIsTipOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [isMutual, setIsMutual] = useState(true);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [, setTick] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<any>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load session key
   useEffect(() => {
@@ -44,6 +67,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       }
     }
   }, [publicKey, router]);
+
+  // Timer to force re-render for relative timestamps (like "Online" -> "Last seen")
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch Conversation & Users
   useEffect(() => {
@@ -95,6 +126,32 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           .eq("actor_wallet", other.wallet_address)
           .eq("type", "message");
         
+        // Try to fetch last_seen safely
+        try {
+          const { data: userPresence } = await supabase
+            .from("users")
+            .select("last_seen")
+            .eq("wallet_address", other.wallet_address)
+            .maybeSingle();
+          if (userPresence && userPresence.last_seen) {
+            setOtherUser((prev: any) => ({ ...prev, last_seen: userPresence.last_seen }));
+          }
+        } catch (e) {
+          // Ignore if column doesn't exist
+        }
+
+        // Try to mark messages as read
+        try {
+          await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .eq("conversation_id", convoId)
+            .eq("sender_wallet", other.wallet_address)
+            .eq("is_read", false);
+        } catch (e) {
+          // Ignore if column doesn't exist
+        }
+        
         fetchMessages(other.chat_pubkey);
       } catch (err) {
         console.error("Convo fetch error:", err);
@@ -144,7 +201,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
   // Realtime subscription
   useEffect(() => {
-    if (!otherPubkey || !mySecret) return;
+    if (!otherPubkey || !mySecret || !publicKey || !otherUser) return;
     
     const channel = supabase
       .channel(`chat_${convoId}`)
@@ -153,22 +210,108 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         schema: 'public', 
         table: 'messages',
         filter: `conversation_id=eq.${convoId}`
-      }, (payload) => {
+      }, async (payload) => {
         const processed = processIncomingMessage(payload.new, otherPubkey);
         setMessages(prev => [...prev, processed]);
         scrollToBottom();
+
+        // Mark as read immediately if we receive a message while looking at this chat
+        if (payload.new.sender_wallet === otherUser.wallet_address) {
+          await supabase
+            .from("notifications")
+            .update({ is_read: true })
+            .eq("user_wallet", publicKey.toString())
+            .eq("actor_wallet", otherUser.wallet_address)
+            .eq("type", "message")
+            .eq("is_read", false);
+        }
+        // Try to mark message as read
+        if (payload.new.sender_wallet === otherUser.wallet_address) {
+          try {
+            await supabase
+              .from("messages")
+              .update({ is_read: true })
+              .eq("id", payload.new.id);
+          } catch (e) {}
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${convoId}`
+      }, (payload) => {
+        setMessages(prev => prev.map(msg => msg.id === payload.new.id ? { ...msg, is_read: payload.new.is_read } : msg));
+      })
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.user !== publicKey.toString()) {
+          setIsOtherTyping(payload.payload.isTyping);
+          if (payload.payload.isTyping) {
+            scrollToBottom();
+          }
+        }
+      })
+      .subscribe();
+      
+    channelRef.current = channel;
+      
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [otherPubkey, mySecret, convoId, publicKey, otherUser]);
+
+  // Realtime subscription for user presence
+  useEffect(() => {
+    if (!otherUser?.wallet_address) return;
+    
+    const presenceChannel = supabase
+      .channel(`presence_${otherUser.wallet_address}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: `wallet_address=eq.${otherUser.wallet_address}`
+      }, (payload) => {
+        if (payload.new.last_seen) {
+          setOtherUser((prev: any) => ({ ...prev, last_seen: payload.new.last_seen }));
+        }
       })
       .subscribe();
       
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(presenceChannel);
     };
-  }, [otherPubkey, mySecret, convoId]);
+  }, [otherUser?.wallet_address]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    
+    if (channelRef.current && publicKey) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { user: publicKey.toString(), isTyping: true }
+      });
+      
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { user: publicKey.toString(), isTyping: false }
+          });
+        }
+      }, 2000);
+    }
   };
 
   const handleSend = async (text: string, mediaUrl?: string, tipAmount?: number) => {
@@ -222,7 +365,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       }
     } catch (err: any) {
       if (err?.message?.includes("User rejected") || err?.name === "WalletSendTransactionError" || err?.message?.includes("cancelled")) {
-        toast.info("Tip cancelled");
+        toast("Tip cancelled", { icon: "ℹ️" });
       } else {
         console.error("Tip error:", err);
         toast.error("Failed to tip");
@@ -283,10 +426,17 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                 </div>
               )}
             </div>
-            <div>
-              <div className="font-label-lg font-bold text-on-surface">{otherUser.display_name}</div>
-              <div className="font-body-sm text-on-surface-variant">@{otherUser.username}</div>
-            </div>
+              <div className="flex flex-col">
+                <span className="font-headline-sm font-bold text-on-surface">{otherUser.display_name || "User"}</span>
+                <div className="flex items-center gap-1.5">
+                  {getLastSeenText(otherUser.last_seen) === "Online" && (
+                    <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+                  )}
+                  <span className="font-body-sm text-on-surface-variant">
+                    {getLastSeenText(otherUser.last_seen) || `@${otherUser.username || `${otherUser.wallet_address.slice(0, 10)}...`}`}
+                  </span>
+                </div>
+              </div>
           </Link>
         ) : (
           <div className="w-32 h-10 bg-surface-container-highest rounded-xl animate-pulse"></div>
@@ -357,13 +507,31 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                       </div>
                     )}
                     
-                    <div className="text-[11px] text-on-surface-variant mt-1 px-1">
+                    <div className={`text-[11px] text-on-surface-variant mt-1 px-1 flex items-center gap-1 ${isMine ? "justify-end" : "justify-start"}`}>
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {isMine && (
+                        <span className={`material-symbols-outlined text-[14px] ${msg.is_read ? "text-[#3B82F6]" : "text-outline-variant"}`} style={{ fontVariationSettings: "'FILL' 0, 'wght' 600" }}>
+                          done_all
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
+            {isOtherTyping && (
+              <div className="w-full flex flex-col gap-3">
+                <div className="flex self-start items-start max-w-[75%]">
+                  <div className="px-4 py-3 rounded-2xl bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50 flex items-center h-[42px]">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 rounded-full bg-outline-variant animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                      <div className="w-2 h-2 rounded-full bg-outline-variant animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                      <div className="w-2 h-2 rounded-full bg-outline-variant animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </>
         )}
@@ -387,7 +555,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
             <input
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => handleInputChange(e as any)}
               placeholder="Message..."
               className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant focus:outline-none min-w-0"
             />
