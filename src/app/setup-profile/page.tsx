@@ -7,6 +7,7 @@ import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
 import ImageCropper from "@/components/ImageCropper";
 import MediaPickerModal from "@/components/MediaPickerModal";
+import { useUsernameCheck } from "@/hooks/useUsernameCheck";
 
 export default function SetupProfilePage() {
   const { publicKey, connected } = useWallet();
@@ -20,6 +21,8 @@ export default function SetupProfilePage() {
   const [instagramLink, setInstagramLink] = useState("");
   const [customLink, setCustomLink] = useState("");
   
+  const { isChecking, isAvailable, suggestions } = useUsernameCheck(username);
+
   const [avatarPreview, setAvatarPreview] = useState("");
   const [bannerPreview, setBannerPreview] = useState("");
 
@@ -32,9 +35,12 @@ export default function SetupProfilePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // If not connected, redirect to home
+    // If not connected, wait a bit for auto-connect before redirecting
     if (!connected) {
-      router.push("/");
+      const timeout = setTimeout(() => {
+        if (!connected) router.push("/");
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
   }, [connected, router]);
 
@@ -219,6 +225,43 @@ export default function SetupProfilePage() {
               />
             </div>
             <p className="font-body-sm text-on-surface-variant mt-xs">Letters, numbers, underscores only.</p>
+            
+            {/* Realtime Username Check UI */}
+            {isChecking && (
+              <div className="flex items-center gap-xs mt-sm text-on-surface-variant font-label-sm">
+                <div className="w-4 h-4 border-2 border-on-surface-variant border-t-transparent rounded-full animate-spin" />
+                Checking availability...
+              </div>
+            )}
+            {!isChecking && isAvailable === true && (
+              <div className="flex items-center gap-xs mt-sm text-primary font-label-sm">
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                Username is available!
+              </div>
+            )}
+            {!isChecking && isAvailable === false && (
+              <div className="flex flex-col gap-xs mt-sm">
+                <div className="flex items-center gap-xs text-error font-label-sm">
+                  <span className="material-symbols-outlined text-[16px]">cancel</span>
+                  Username is already taken.
+                </div>
+                {suggestions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-xs mt-xs">
+                    <span className="text-on-surface-variant font-body-sm text-[12px] mr-1">Try:</span>
+                    {suggestions.map(sugg => (
+                      <button
+                        key={sugg}
+                        type="button"
+                        onClick={() => setUsername(sugg)}
+                        className="bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant px-sm py-0.5 rounded-full font-mono text-[12px] text-on-surface transition-colors"
+                      >
+                        @{sugg}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -316,7 +359,7 @@ export default function SetupProfilePage() {
 
           <button
             type="submit"
-            disabled={loading || !username || !displayName}
+            disabled={loading || !username || !displayName || isAvailable === false}
             className="w-full bg-primary text-on-primary font-label-md py-md rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-md"
           >
             {loading ? "Saving Profile..." : "Complete Setup"}

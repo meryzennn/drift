@@ -1,122 +1,47 @@
 "use client";
 
-import { Post } from "@/types";
+import { Comment } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { sendTip } from "@/utils/solanaUtils";
 import { useState } from "react";
-import SendTipModal from "./SendTipModal";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 
-interface PostCardProps {
-  post: Post;
-  isDetail?: boolean;
+interface CommentCardProps {
+  comment: Comment;
 }
 
-export default function PostCard({ post, isDetail = false }: PostCardProps) {
-  const router = useRouter();
-  const { publicKey, sendTransaction, connected } = useWallet();
-  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+export default function CommentCard({ comment }: CommentCardProps) {
+  const { publicKey, connected } = useWallet();
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
-  const [displayContent, setDisplayContent] = useState(post.content);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [displayContent, setDisplayContent] = useState(comment.content);
   const [isDeleted, setIsDeleted] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
-  const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
-
-  const handleTipClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!publicKey) {
-      toast.error("Please connect your wallet first to send a tip.");
-      return;
-    }
-    setIsTipModalOpen(true);
-  };
-
-  const confirmTip = async (amount: number) => {
-    if (!publicKey) return;
-    
-    try {
-      await sendTip(publicKey, post.authorPublicKey, amount, sendTransaction);
-      
-      // Save tip to Supabase
-      const { error: dbError } = await supabase.from("tips").insert([
-        {
-          from_wallet: publicKey.toString(),
-          to_wallet: post.authorPublicKey,
-          amount: amount,
-        }
-      ]);
-      
-      if (dbError) {
-        console.error("Tip saved on chain but failed to record in DB:", dbError);
-      }
-
-      toast.success(`Tip of ${amount} SOL sent successfully!`);
-      setIsTipModalOpen(false);
-    } catch (error) {
-      console.error("Tip failed:", error);
-      toast.error("Failed to send tip. See console for details.");
-    }
-  };
+  const isOwner = connected && publicKey?.toString() === comment.authorPublicKey;
 
   const formatAddress = (address: string) => {
     if (!address) return "";
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
-  const handleRepostClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!publicKey) {
-      toast.error("Please connect your wallet first to repost.");
-      return;
-    }
-    
-    try {
-      const { error: dbError } = await supabase.from("reposts").insert([
-        {
-          user_wallet: publicKey.toString(),
-          post_id: post.id,
-        }
-      ]);
-      
-      if (dbError) {
-        if (dbError.code === '23505') { // Unique constraint violation
-          toast.error("You have already reposted this!");
-        } else {
-          throw dbError;
-        }
-        return;
-      }
-      
-      toast.success("Post reposted successfully!");
-    } catch (error) {
-      console.error("Repost failed:", error);
-      toast.error("Failed to repost.");
-    }
-  };
-
   const handleSaveImage = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!post.imageUrl) return;
+    if (!comment.imageUrl) return;
     try {
-      const response = await fetch(post.imageUrl);
+      const response = await fetch(comment.imageUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `drift-image-${post.id}.jpg`;
+      link.download = `drift-comment-${comment.id}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -142,12 +67,12 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const confirmDelete = async () => {
     setIsActionLoading(true);
     try {
-      const { error } = await supabase.from("posts").delete().eq("id", post.id);
+      const { error } = await supabase.from("comments").delete().eq("id", comment.id);
       if (error) throw error;
-      toast.success("Post deleted.");
+      toast.success("Reply deleted.");
       setIsDeleted(true);
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete post.");
+      toast.error(err.message || "Failed to delete reply.");
     } finally {
       setIsActionLoading(false);
       setIsConfirmDeleteOpen(false);
@@ -159,13 +84,13 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
     if (!editContent.trim()) return;
     setIsActionLoading(true);
     try {
-      const { error } = await supabase.from("posts").update({ content: editContent }).eq("id", post.id);
+      const { error } = await supabase.from("comments").update({ content: editContent }).eq("id", comment.id);
       if (error) throw error;
       setDisplayContent(editContent);
       setIsEditing(false);
-      toast.success("Post updated.");
+      toast.success("Reply updated.");
     } catch (err: any) {
-      toast.error(err.message || "Failed to update post.");
+      toast.error(err.message || "Failed to update reply.");
     } finally {
       setIsActionLoading(false);
     }
@@ -173,50 +98,41 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
 
   if (isDeleted) return null;
 
-  const handleCardClick = () => {
-    if (isDetail) return;
-    setIsMenuOpen(false);
-    router.push(`/post/${post.id}`);
-  };
-
   return (
-    <article 
-      className={`bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md transition-colors duration-200 relative ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
-      onClick={handleCardClick}
-    >
+    <article className="bg-transparent border-b border-outline-variant p-md flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 relative" onClick={() => setIsMenuOpen(false)}>
       <div className="flex items-start gap-md">
         <Link 
-          href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
+          href={`/profile/${comment.authorProfile?.username || comment.authorPublicKey}`} 
           className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center font-bold text-primary hover:opacity-80 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
-          {post.authorProfile?.avatarUrl ? (
+          {comment.authorProfile?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={post.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+            <img src={comment.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
-            post.authorPublicKey.slice(0, 2)
+            comment.authorPublicKey.slice(0, 2)
           )}
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-sm flex-wrap relative">
             <Link 
-              href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
+              href={`/profile/${comment.authorProfile?.username || comment.authorPublicKey}`} 
               className="font-label-md text-on-surface hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
-              {post.authorProfile?.displayName || "Anonymous User"}
+              {comment.authorProfile?.displayName || "Anonymous User"}
             </Link>
             <span className="material-symbols-outlined text-[14px] text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
             <Link 
-              href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
+              href={`/profile/${comment.authorProfile?.username || comment.authorPublicKey}`} 
               className="font-mono text-[14px] text-on-surface-variant hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
-              @{post.authorProfile?.username || formatAddress(post.authorPublicKey)}
+              @{comment.authorProfile?.username || formatAddress(comment.authorPublicKey)}
             </Link>
             <span className="text-on-surface-variant text-sm px-xs">•</span>
             <span className="font-body-sm text-on-surface-variant">
-              {formatDistanceToNow(new Date(post.createdAt))}
+              {formatDistanceToNow(new Date(comment.createdAt))}
             </span>
 
             {isOwner && (
@@ -280,68 +196,38 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             </div>
           )}
           
-          {post.imageUrl && (
+          {comment.imageUrl && (
             <div 
-              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low cursor-pointer hover:opacity-90 transition-opacity"
+              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low cursor-pointer hover:opacity-90 transition-opacity max-w-[80%]"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
-                src={post.imageUrl} 
-                alt="Post content" 
-                className="w-full max-h-[512px] object-contain bg-black/5"
+                src={comment.imageUrl} 
+                alt="Comment media" 
+                className="w-full max-h-[300px] object-contain bg-black/5"
               />
             </div>
           )}
           
-          <div className="mt-md flex justify-between items-center text-on-surface-variant max-w-[28rem]">
-            <button className="flex items-center gap-xs hover:text-primary transition-colors group">
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-primary/10 rounded-full p-xs">chat_bubble</span>
-              <span className="font-body-sm">{post.commentsCount || 0}</span>
-            </button>
-            
-            <button 
-              onClick={handleRepostClick}
-              className="flex items-center gap-xs hover:text-secondary transition-colors group"
-            >
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-secondary/10 rounded-full p-xs">repeat</span>
-              <span className="font-body-sm">0</span>
-            </button>
-            
+          <div className="mt-md flex justify-between items-center text-on-surface-variant max-w-[12rem]">
             <button className="flex items-center gap-xs hover:text-error transition-colors group">
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-error/10 rounded-full p-xs">favorite</span>
-              <span className="font-body-sm">{post.likes}</span>
-            </button>
-            
-            <button 
-              onClick={handleTipClick}
-              className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors ml-auto"
-            >
-              <span className="material-symbols-outlined text-[16px]">toll</span>
-              <span className="font-label-sm">Send Tip</span>
+              <span className="material-symbols-outlined text-[18px] group-hover:bg-error/10 rounded-full p-xs">favorite</span>
+              <span className="font-body-sm">0</span>
             </button>
           </div>
         </div>
       </div>
-
-      <SendTipModal
-        isOpen={isTipModalOpen}
-        onClose={() => setIsTipModalOpen(false)}
-        recipientAddress={post.authorPublicKey}
-        recipientName={post.authorProfile?.displayName || "Anonymous User"}
-        recipientAvatar={post.authorProfile?.avatarUrl}
-        onConfirm={confirmTip}
-      />
 
       {isConfirmDeleteOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-[24rem] bg-surface-container-high border border-outline-variant rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 text-error">
               <span className="material-symbols-outlined text-[28px]">warning</span>
-              <h3 className="font-headline-sm font-bold text-on-surface">Delete Post?</h3>
+              <h3 className="font-headline-sm font-bold text-on-surface">Delete Reply?</h3>
             </div>
             <p className="font-body-md text-on-surface-variant">
-              This action cannot be undone. Are you sure you want to permanently delete this post?
+              This action cannot be undone. Are you sure you want to permanently delete this reply?
             </p>
             <div className="flex justify-end gap-3 mt-4">
               <button 
@@ -374,7 +260,7 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
           </button>
           
           <img 
-            src={post.imageUrl} 
+            src={comment.imageUrl} 
             alt="Full view" 
             className="max-w-[100vw] max-h-[100vh] object-contain select-none"
             onClick={(e) => e.stopPropagation()}

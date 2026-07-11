@@ -93,7 +93,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
   const resolution = type === "avatar" ? "800 × 800px · 1:1 ratio" : type === "banner" ? "1500 × 500px · 3:1 ratio" : "All ratios supported";
 
   const modal = (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-md" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[700] flex items-center justify-center p-md" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
       
       <div

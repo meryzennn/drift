@@ -66,7 +66,8 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           media_url,
           created_at,
           likes,
-          author_wallet
+          author_wallet,
+          comments ( count )
         `)
         .eq("author_wallet", wallet)
         .order("created_at", { ascending: false });
@@ -84,6 +85,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             displayName: userData.display_name,
             avatarUrl: userData.avatar_url,
           },
+          commentsCount: p.comments?.[0]?.count ?? 0,
         }));
         setPosts(formattedPosts);
       }
@@ -104,7 +106,8 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
               username,
               display_name,
               avatar_url
-            )
+            ),
+            comments ( count )
           )
         `)
         .eq("user_wallet", wallet)
@@ -128,6 +131,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                 displayName: authorData.display_name,
                 avatarUrl: authorData.avatar_url,
               },
+              commentsCount: p.comments?.[0]?.count ?? 0,
             };
           });
         setReposts(formattedReposts);

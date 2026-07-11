@@ -11,8 +11,10 @@ export default function ProfileRedirect() {
 
   useEffect(() => {
     if (!connected) {
-      router.push("/");
-      return;
+      const timeout = setTimeout(() => {
+        if (!connected) router.push("/");
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
 
     if (publicKey) {

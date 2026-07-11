@@ -8,8 +8,9 @@ import { sendTip } from "@/utils/solanaUtils";
 import toast from "react-hot-toast";
 import ImageCropper from "@/components/ImageCropper";
 import MediaPickerModal from "@/components/MediaPickerModal";
+import { useUsernameCheck } from "@/hooks/useUsernameCheck";
 
-const ADMIN_WALLET_ADDRESS = "FjH23ZJm1Tz7oM7q3K3ZJm1Tz7oM7q3K3ZJm1Tz7oM7q"; // Placeholder
+const ADMIN_WALLET_ADDRESS = "GwYQsXwVtwy1czytYLzNqN5Ao5xacndswrkeKZNJbTbX";
 const USERNAME_CHANGE_FEE = 0.05;
 
 export default function EditProfilePage() {
@@ -28,6 +29,8 @@ export default function EditProfilePage() {
   const [instagramLink, setInstagramLink] = useState("");
   const [customLink, setCustomLink] = useState("");
   
+  const { isChecking, isAvailable, suggestions } = useUsernameCheck(username, originalUsername);
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState("");
@@ -44,11 +47,14 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     if (!connected) {
-      router.push("/");
-      return;
+      const timeout = setTimeout(() => {
+        if (!connected) router.push("/");
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
     
     if (publicKey) {
@@ -168,24 +174,30 @@ export default function EditProfilePage() {
     return data.url;
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const requestSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!publicKey) return;
+
+    const isUsernameChanged = username !== originalUsername;
+    if (isUsernameChanged && hasSetUsernameOnce) {
+      setIsConfirmModalOpen(true);
+    } else {
+      executeSave();
+    }
+  };
+
+  const executeSave = async () => {
     if (!publicKey) return;
     
     setSaving(true);
     setError("");
+    setIsConfirmModalOpen(false);
 
     try {
       const walletAddress = publicKey.toString();
       let isUsernameChanged = username !== originalUsername;
 
       if (isUsernameChanged && hasSetUsernameOnce) {
-        // Need to pay fee
-        const confirmPay = window.confirm(`Changing your username costs ${USERNAME_CHANGE_FEE} SOL. Proceed?`);
-        if (!confirmPay) {
-          setSaving(false);
-          return;
-        }
 
         // Send transaction
         try {
@@ -258,7 +270,7 @@ export default function EditProfilePage() {
         <h1 className="font-display text-[32px] text-on-surface mb-xs">Edit Profile</h1>
         <p className="font-body-md text-on-surface-variant mb-xl">Customize your Web3 identity.</p>
 
-        <form onSubmit={handleSave} className="flex flex-col gap-lg">
+        <form onSubmit={requestSave} className="flex flex-col gap-lg">
           {/* Banner & Avatar Section */}
           <div className="relative mb-xl">
             {/* Banner */}
@@ -319,7 +331,44 @@ export default function EditProfilePage() {
               />
             </div>
             {hasSetUsernameOnce && username !== originalUsername && (
-              <p className="font-body-sm text-primary mt-xs">⚠️ Changing username requires a {USERNAME_CHANGE_FEE} SOL fee.</p>
+              <p className="font-body-sm text-primary mt-xs">⚠️ Changing username costs a {USERNAME_CHANGE_FEE} SOL fee.</p>
+            )}
+            
+            {/* Realtime Username Check UI */}
+            {isChecking && (
+              <div className="flex items-center gap-xs mt-sm text-on-surface-variant font-label-sm">
+                <div className="w-4 h-4 border-2 border-on-surface-variant border-t-transparent rounded-full animate-spin" />
+                Checking availability...
+              </div>
+            )}
+            {!isChecking && isAvailable === true && (
+              <div className="flex items-center gap-xs mt-sm text-primary font-label-sm">
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                Username is available!
+              </div>
+            )}
+            {!isChecking && isAvailable === false && (
+              <div className="flex flex-col gap-xs mt-sm">
+                <div className="flex items-center gap-xs text-error font-label-sm">
+                  <span className="material-symbols-outlined text-[16px]">cancel</span>
+                  Username is already taken.
+                </div>
+                {suggestions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-xs mt-xs">
+                    <span className="text-on-surface-variant font-body-sm text-[12px] mr-1">Try:</span>
+                    {suggestions.map(sugg => (
+                      <button
+                        key={sugg}
+                        type="button"
+                        onClick={() => setUsername(sugg)}
+                        className="bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant px-sm py-0.5 rounded-full font-mono text-[12px] text-on-surface transition-colors"
+                      >
+                        @{sugg}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -426,7 +475,7 @@ export default function EditProfilePage() {
             </button>
             <button
               type="submit"
-              disabled={saving || !username || !displayName}
+              disabled={saving || !username || !displayName || isAvailable === false}
               className="flex-1 bg-primary text-on-primary font-label-md py-md rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Saving..." : "Save Changes"}
@@ -457,6 +506,38 @@ export default function EditProfilePage() {
         onGif={handleGifSelect}
         onClose={() => setMediaPickerTarget(null)}
       />
+    )}
+
+    {/* Custom Confirmation Modal */}
+    {isConfirmModalOpen && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-md">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !saving && setIsConfirmModalOpen(false)}></div>
+        <div 
+          className="relative z-10 bg-surface-container border border-outline-variant rounded-xl p-lg shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200"
+          style={{ width: "400px", maxWidth: "90vw" }}
+        >
+          <h3 className="font-headline-md text-on-surface mb-sm">Confirm Username Change</h3>
+          <p className="font-body-md text-on-surface-variant mb-lg">
+            Changing your username will cost a network fee of <span className="font-bold text-primary">{USERNAME_CHANGE_FEE} SOL</span>. Do you want to proceed?
+          </p>
+          <div className="flex gap-sm">
+            <button
+              onClick={() => setIsConfirmModalOpen(false)}
+              disabled={saving}
+              className="flex-1 px-md py-sm rounded-lg border border-outline-variant text-on-surface font-label-md hover:bg-surface-container-highest transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={executeSave}
+              disabled={saving}
+              className="flex-1 px-md py-sm rounded-lg bg-primary text-on-primary font-label-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              {saving ? <div className="w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" /> : "Proceed & Pay"}
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   );

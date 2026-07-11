@@ -10,6 +10,7 @@ interface SendTipModalProps {
   onClose: () => void;
   recipientAddress: string;
   recipientName?: string;
+  recipientAvatar?: string;
   onConfirm: (amount: number) => void;
 }
 
@@ -21,6 +22,7 @@ export default function SendTipModal({
   onClose,
   recipientAddress,
   recipientName = "Anonymous User",
+  recipientAvatar,
   onConfirm,
 }: SendTipModalProps) {
   const [selectedPreset, setSelectedPreset] = useState<number | null>(0.1);
@@ -32,26 +34,21 @@ export default function SendTipModal({
   const [balance, setBalance] = useState<number>(0);
 
   useEffect(() => {
-    if (connected && publicKey) {
+    if (isOpen && connected && publicKey) {
       connection.getBalance(publicKey).then((b) => setBalance(b / LAMPORTS_PER_SOL));
     }
-  }, [connected, publicKey, connection]);
+  }, [isOpen, connected, publicKey, connection]);
 
-  // Handle outside click
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
     if (isOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -95,22 +92,40 @@ export default function SendTipModal({
   const canSubmit = connected && isValidAmount && isSufficientBalance;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-md">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-md"
+      onClick={(e) => e.stopPropagation()} // Stop bubbling to PostCard
+    >
       {/* Dimmed Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+      ></div>
       
       {/* Modal Container */}
       <div 
         ref={modalRef}
-        className="relative z-10 bg-[#000000] border border-outline-variant rounded-[12px] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 bg-[#000000] border border-outline-variant rounded-[12px] overflow-hidden flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-4 zoom-in-95 duration-300 ease-out"
         style={{ width: "400px", maxWidth: "90vw" }}
       >
         {/* Header */}
-        <div className="p-lg pb-md border-b border-outline-variant/50">
-          <h2 className="font-headline-md text-headline-md text-on-surface mb-xs">Send a Tip</h2>
+        <div className="p-lg pb-md border-b border-outline-variant/50 relative">
+          <button 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+            className="absolute top-md right-md w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-on-surface"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+          
+          <h2 className="font-headline-md text-headline-md text-on-surface mb-xs pr-lg">Send a Tip</h2>
           <div className="flex items-center gap-sm mt-md">
             <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center font-bold text-primary">
-              {recipientAddress ? recipientAddress.slice(0, 2) : "?"}
+              {recipientAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={recipientAvatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                recipientAddress ? recipientAddress.slice(0, 2) : "?"
+              )}
             </div>
             <span className="font-body-sm text-body-sm text-on-surface-variant">
               to <span className="font-label-md text-label-md text-on-surface">@{formatAddress(recipientAddress)}</span>
@@ -184,7 +199,7 @@ export default function SendTipModal({
         {/* Footer Actions */}
         <div className="p-lg pt-md flex items-center justify-between gap-md border-t border-outline-variant/50 bg-surface-container-lowest">
           <button 
-            onClick={(e) => { e.preventDefault(); onClose(); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
             className="px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer bg-transparent border-none"
           >
             Cancel

@@ -20,7 +20,8 @@ export default async function Home() {
         username,
         display_name,
         avatar_url
-      )
+      ),
+      comments ( count )
     `)
     .order("created_at", { ascending: false });
 
@@ -36,6 +37,7 @@ export default async function Home() {
       displayName: p.users.display_name,
       avatarUrl: p.users.avatar_url,
     } : undefined,
+    commentsCount: p.comments?.[0]?.count ?? 0,
   }));
 
   return (

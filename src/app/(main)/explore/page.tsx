@@ -19,7 +19,8 @@ export default async function ExplorePage() {
         username,
         display_name,
         avatar_url
-      )
+      ),
+      comments ( count )
     `)
     .order("likes", { ascending: false })
     .limit(20);
@@ -36,6 +37,7 @@ export default async function ExplorePage() {
       displayName: p.users.display_name,
       avatarUrl: p.users.avatar_url,
     } : undefined,
+    commentsCount: p.comments?.[0]?.count ?? 0,
   }));
 
   return (

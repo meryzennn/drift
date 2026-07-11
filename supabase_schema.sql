@@ -131,3 +131,26 @@ CREATE POLICY "Anyone can update posts" ON public.posts
 
 CREATE POLICY "Anyone can delete posts" ON public.posts
     FOR DELETE USING (true);
+-- COMMENTS TABLE
+CREATE TABLE IF NOT EXISTS public.comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    author_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    media_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Comments are viewable by everyone" ON public.comments
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert comments" ON public.comments
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can update comments" ON public.comments
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Anyone can delete comments" ON public.comments
+    FOR DELETE USING (true);
