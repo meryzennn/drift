@@ -36,7 +36,7 @@ export default function WalletModal({ isOpen, onClose }: WalletModalProps) {
       
       <div 
         ref={modalRef}
-        className="relative z-10 w-full max-w-md bg-[#09090b] border border-[#27272a] rounded-[12px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 w-[400px] max-w-[90vw] bg-[#09090b] border border-[#27272a] rounded-[12px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
         <div className="flex justify-between items-center p-md border-b border-[#27272a]">
