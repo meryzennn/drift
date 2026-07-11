@@ -9,6 +9,7 @@ import { encryptMessage, decryptMessage } from "@/utils/encryption";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import MediaPickerModal from "@/components/MediaPickerModal";
+import ImageLightbox from "@/components/ImageLightbox";
 import SendTipModal from "@/components/SendTipModal";
 import { sendTip } from "@/utils/solanaUtils";
 
@@ -62,6 +63,9 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [swipeState, setSwipeState] = useState<{ id: string, startX: number, currentX: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
   const [deletePrompt, setDeletePrompt] = useState<{ singleId?: string, multiple?: boolean } | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiTimerRef = useRef<NodeJS.Timeout | null>(null);
   const swipeThreshold = 60;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -275,6 +279,9 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           setIsOtherTyping(payload.payload.isTyping);
         }
       })
+      .on('broadcast', { event: 'confetti' }, () => {
+        triggerConfetti();
+      })
       .subscribe();
       
     channelRef.current = channel;
@@ -312,6 +319,12 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
+  };
+
+  const triggerConfetti = () => {
+    setShowConfetti(true);
+    if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+    confettiTimerRef.current = setTimeout(() => setShowConfetti(false), 4000);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -387,11 +400,20 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const confirmDelete = async () => {
     try {
       if (deletePrompt?.singleId) {
+        const msgToDelete = messages.find(m => m.id === deletePrompt.singleId);
+        if (msgToDelete?.decryptedMedia) {
+          fetch("/api/delete-media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageUrl: msgToDelete.decryptedMedia }) }).catch(() => {});
+        }
         const { error } = await supabase.from("messages").delete().eq("id", deletePrompt.singleId);
         if (error) throw error;
         setMessages(prev => prev.filter(msg => msg.id !== deletePrompt.singleId));
       } else if (deletePrompt?.multiple) {
         const idsToDelete = Array.from(selectedMessageIds);
+        // Delete media from R2 for each message that has media
+        const msgsToDelete = messages.filter(m => idsToDelete.includes(m.id) && m.decryptedMedia);
+        msgsToDelete.forEach(m => {
+          fetch("/api/delete-media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageUrl: m.decryptedMedia }) }).catch(() => {});
+        });
         const { error } = await supabase.from("messages").delete().in("id", idsToDelete);
         if (error) throw error;
         setMessages(prev => prev.filter(msg => !idsToDelete.includes(msg.id)));
@@ -488,9 +510,12 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     try {
       const signature = await sendTip(publicKey, otherUser.wallet_address, amount, sendTransaction);
       if (signature) {
-        toast.success(`Successfully tipped ${amount} SOL!`);
+        toast.success(`Successfully tipped ${amount} SOL! 🎉`);
         setIsTipOpen(false);
         handleSend(message || "", undefined, amount);
+        // Trigger confetti locally and broadcast to the other user
+        triggerConfetti();
+        channelRef.current?.send({ type: 'broadcast', event: 'confetti', payload: {} });
       }
     } catch (err: any) {
       if (err?.message?.includes("User rejected") || err?.name === "WalletSendTransactionError" || err?.message?.includes("cancelled")) {
@@ -640,13 +665,12 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                       }}
                     >
                       {/* Unified Message Bubble */}
-                      {(!msg.is_tip || (msg.is_tip && msg.decryptedText !== "Sent a tip") || msg.reply_to_id || msg.decryptedMedia) && (
-                        <div className={`flex flex-col p-1.5 rounded-2xl text-[15px] ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
+                      <div className={`flex flex-col rounded-2xl text-[15px] overflow-hidden ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
                           
                           {/* Reply Snippet */}
                           {msg.reply_to_id && (
                             <div 
-                              className={`mb-1.5 p-2 rounded-xl text-sm border-l-4 cursor-pointer opacity-90 hover:opacity-100 transition-opacity max-w-full overflow-hidden ${isMine ? "bg-black/10 border-on-primary text-on-primary" : "bg-black/20 border-primary text-on-surface"}`}
+                              className={`m-1.5 mb-0 p-2 rounded-xl text-sm border-l-4 cursor-pointer opacity-90 hover:opacity-100 transition-opacity overflow-hidden ${isMine ? "bg-black/10 border-on-primary text-on-primary" : "bg-black/20 border-primary text-on-surface"}`}
                               onClick={() => {
                                 const el = document.getElementById(`msg-${msg.reply_to_id}`);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -668,10 +692,28 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                               </div>
                             </div>
                           )}
+
+                          {/* Tip Card */}
+                          {msg.is_tip && (
+                            <div className={`flex items-center gap-2 px-3 py-2 ${
+                              isMine
+                                ? "bg-yellow-400/20 border-b border-yellow-400/30"
+                                : "bg-yellow-500/15 border-b border-yellow-500/20"
+                            }`}>
+                              <span className="material-symbols-outlined text-yellow-400 text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                              <div>
+                                <div className="text-xs font-bold text-yellow-400">Tip Sent</div>
+                                <div className="text-sm font-bold">{msg.tip_amount} SOL</div>
+                              </div>
+                            </div>
+                          )}
                         
                           {/* Media */}
                           {msg.decryptedMedia && (
-                            <div className="rounded-xl overflow-hidden max-w-[250px] max-h-[250px]">
+                            <div 
+                              className="overflow-hidden max-w-[250px] max-h-[250px] cursor-zoom-in"
+                              onClick={() => !msg.decryptedMedia?.endsWith('.mp4') && setLightboxSrc(msg.decryptedMedia)}
+                            >
                               {msg.decryptedMedia.endsWith('.mp4') ? (
                                 <video src={msg.decryptedMedia} autoPlay loop muted className="w-full h-full object-cover" />
                               ) : (
@@ -682,12 +724,11 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                           
                           {/* Text */}
                           {msg.decryptedText && (!msg.is_tip || (msg.is_tip && msg.decryptedText !== "Sent a tip")) && (
-                            <div className={`px-2.5 py-1 ${msg.decryptedMedia ? "mt-1.5" : ""}`}>
+                            <div className={`px-3 py-2 ${msg.decryptedMedia || msg.reply_to_id || msg.is_tip ? "" : ""}`}>
                               {msg.decryptedText}
                             </div>
                           )}
                         </div>
-                      )}
                       
                       <div className={`text-[11px] text-on-surface-variant mt-1 px-1 flex items-center gap-1 ${isMine ? "justify-end" : "justify-start"}`}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -875,6 +916,40 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
             </button>
           </div>
         </div>
+      </div>,
+      document.body
+    )}
+    {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+    {mounted && showConfetti && createPortal(
+      <div className="fixed inset-0 z-[99998] pointer-events-none overflow-hidden" aria-hidden>
+        {Array.from({ length: 80 }).map((_, i) => {
+          const colors = ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FF6FF2','#FFA500','#7C3AED'];
+          const color = colors[i % colors.length];
+          const left = Math.random() * 100;
+          const delay = Math.random() * 2;
+          const duration = 2 + Math.random() * 2;
+          const size = 6 + Math.random() * 8;
+          const rotate = Math.random() * 720;
+          return (
+            <div key={i} style={{
+              position: 'absolute',
+              left: `${left}%`,
+              top: '-20px',
+              width: `${size}px`,
+              height: `${size * 0.6}px`,
+              background: color,
+              borderRadius: '2px',
+              animation: `confettiFall ${duration}s ${delay}s ease-in forwards`,
+              transform: `rotate(${rotate}deg)`,
+            }} />
+          );
+        })}
+        <style>{`
+          @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+          }
+        `}</style>
       </div>,
       document.body
     )}
