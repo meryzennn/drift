@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, ReactNode, useMemo } from "react";
+import { FC, ReactNode, useMemo, useCallback } from "react";
 import {
   ConnectionProvider,
   WalletProvider,
@@ -8,11 +8,13 @@ import {
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { WalletError } from "@solana/wallet-adapter-base";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 interface Props {
   children: ReactNode;
 }
+
 
 export const WalletContextProvider: FC<Props> = ({ children }) => {
   // Can be set to 'devnet', 'testnet', or 'mainnet-beta'
@@ -29,9 +31,20 @@ export const WalletContextProvider: FC<Props> = ({ children }) => {
     []
   );
 
+  const onError = useCallback(
+    (error: WalletError) => {
+      // Typically handled via a toast notification like react-hot-toast
+      console.error("Wallet Error:", error);
+      if (error.name === "WalletSignTransactionError" || error.name === "WalletConnectionError") {
+         alert("Permintaan wallet dibatalkan atau ditolak.");
+      }
+    },
+    []
+  );
+
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider wallets={wallets} onError={onError} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

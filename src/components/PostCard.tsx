@@ -4,6 +4,8 @@ import { Post } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
+import { useState } from "react";
+import SendTipModal from "./SendTipModal";
 
 interface PostCardProps {
   post: Post;
@@ -11,17 +13,24 @@ interface PostCardProps {
 
 export default function PostCard({ post }: PostCardProps) {
   const { publicKey, sendTransaction } = useWallet();
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
 
-  const handleTip = async () => {
+  const handleTipClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!publicKey) {
       alert("Please connect your wallet first to send a tip.");
       return;
     }
+    setIsTipModalOpen(true);
+  };
+
+  const confirmTip = async (amount: number) => {
+    if (!publicKey) return;
     
     try {
-      // 0.05 SOL as a default tip
-      await sendTip(publicKey, post.authorPublicKey, 0.05, sendTransaction);
-      alert("Tip sent successfully!");
+      await sendTip(publicKey, post.authorPublicKey, amount, sendTransaction);
+      alert(`Tip of ${amount} SOL sent successfully!`);
+      setIsTipModalOpen(false);
     } catch (error) {
       console.error("Tip failed:", error);
       alert("Failed to send tip. See console for details.");
@@ -82,15 +91,22 @@ export default function PostCard({ post }: PostCardProps) {
             </button>
             
             <button 
-              onClick={(e) => { e.stopPropagation(); handleTip(); }}
+              onClick={handleTipClick}
               className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors ml-auto"
             >
               <span className="material-symbols-outlined text-[16px]">toll</span>
-              <span className="font-label-sm">Tip 0.05 SOL</span>
+              <span className="font-label-sm">Send Tip</span>
             </button>
           </div>
         </div>
       </div>
+
+      <SendTipModal
+        isOpen={isTipModalOpen}
+        onClose={() => setIsTipModalOpen(false)}
+        recipientAddress={post.authorPublicKey}
+        onConfirm={confirmTip}
+      />
     </article>
   );
 }
