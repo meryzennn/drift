@@ -10,15 +10,7 @@ export default function Navbar() {
         Drift
       </Link>
       
-      {/* Search Bar for Desktop */}
-      <div className="hidden md:flex flex-1 max-w-md mx-md relative">
-        <span className="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">search</span>
-        <input 
-          className="w-full bg-surface-container-low border border-outline-variant rounded-full py-xs pl-xl pr-md text-on-surface font-body-sm focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" 
-          placeholder="Search Drift..." 
-          type="text" 
-        />
-      </div>
+
 
       <div className="flex items-center gap-sm">
         <CustomWalletButton />

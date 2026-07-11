@@ -50,7 +50,9 @@ export default function WalletModal({ isOpen, onClose }: WalletModalProps) {
         </div>
         {/* Modal Body */}
         <div className="p-sm flex flex-col gap-xs min-h-[250px] max-h-[400px] overflow-y-auto">
-          {wallets.map((wallet) => (
+          {wallets
+            .filter((wallet, index, self) => index === self.findIndex((w) => w.adapter.name === wallet.adapter.name))
+            .map((wallet) => (
             <button 
               key={wallet.adapter.name}
               onClick={() => {

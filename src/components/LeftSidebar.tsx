@@ -1,51 +1,26 @@
-"use client";
+import NavLinks from "./NavLinks";
+import { supabase } from "@/utils/supabase";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+export const revalidate = 0; // Disable caching
 
-export default function LeftSidebar() {
-  const pathname = usePathname();
-
-  const links = [
-    { href: "/", label: "Home", icon: "home" },
-    { href: "/explore", label: "Explore", icon: "explore" },
-    { href: "/notifications", label: "Notifications", icon: "notifications" },
-    { href: "/profile", label: "Profile", icon: "person" },
-  ];
-
+export default async function LeftSidebar() {
   return (
-    <aside className="hidden lg:flex flex-col gap-md py-xl px-md w-64 h-[calc(100vh-4rem)] sticky top-16 border-r border-outline-variant font-label-md text-primary bg-background overflow-y-auto hide-scrollbar">
-      <div className="mb-lg">
-        <h2 className="font-headline-md text-headline-md text-primary">Navigation</h2>
-        <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Manage your decentralised identity</p>
-      </div>
-      <nav className="flex flex-col gap-sm">
-        {links.map((link) => {
-          const isActive = pathname === link.href;
-          return (
-            <Link 
-              key={link.href} 
-              href={link.href}
-              className={`flex items-center gap-md px-md py-sm rounded-full cursor-pointer active:opacity-80 transition-all ${
-                isActive 
-                  ? "text-primary bg-primary-container/10" 
-                  : "text-on-surface hover:text-primary hover:bg-surface-container-high"
-              }`}
-            >
-              <span 
-                className="material-symbols-outlined text-xl" 
-                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-              >
-                {link.icon}
-              </span>
-              <span>{link.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-      <button className="mt-lg bg-primary-container text-on-primary-container w-full py-sm rounded-full font-label-md hover:bg-opacity-90 transition-colors">
+    <aside className="hidden lg:flex flex-col gap-md py-xl px-md w-64 h-[calc(100vh-4rem)] sticky top-16 border-r border-outline-variant text-primary bg-background overflow-y-auto hide-scrollbar">
+      
+      {/* Navigation */}
+      <NavLinks />
+
+      <button className="mt-xs mb-lg bg-primary-container text-on-primary-container w-full py-sm rounded-full font-label-md hover:bg-opacity-90 transition-colors">
         New Post
       </button>
+
+      {/* Footer */}
+      <div className="mt-auto pt-md flex flex-wrap gap-x-3 gap-y-1 px-2 font-body-sm text-outline text-[12px]">
+        <a className="hover:underline" href="#">Terms of Service</a>
+        <a className="hover:underline" href="#">Privacy Policy</a>
+        <a className="hover:underline" href="#">Cookie Policy</a>
+        <span>© 2024 Drift</span>
+      </div>
     </aside>
   );
 }

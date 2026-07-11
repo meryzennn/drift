@@ -1,27 +1,43 @@
-"use client";
-
 import { Post } from "@/types";
 import Feed from "@/components/Feed";
+import { supabase } from "@/utils/supabase";
 
-const MOCK_EXPLORE_POSTS: Post[] = [
-  {
-    id: "e1",
-    authorPublicKey: "zkLab3ZJm1Tz7oM7q3K3ZJm1Tz7oM7q3K3ZJm1Tz7oM7q",
-    content: "Zero-Knowledge proofs are revolutionizing how we handle privacy on public ledgers. Our latest rollup achieves 10k TPS with full EVM compatibility.",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    likes: 892,
-  },
-  {
-    id: "e2",
-    authorPublicKey: "9XxB3ZJm1Tz7oM7q3K3ZJm1Tz7oM7q3K3ZJm1Tz7oM7q",
-    content: "NFTs are more than JPEGs. The new metadata standards allow for dynamic state changes on-chain.",
-    imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=1000",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    likes: 412,
-  }
-];
+export const revalidate = 0;
 
-export default function ExplorePage() {
+export default async function ExplorePage() {
+  // Fetch posts ordered by likes to represent "Trending"
+  const { data: postsData } = await supabase
+    .from("posts")
+    .select(`
+      id,
+      content,
+      media_url,
+      created_at,
+      likes,
+      author_wallet,
+      users (
+        username,
+        display_name,
+        avatar_url
+      )
+    `)
+    .order("likes", { ascending: false })
+    .limit(20);
+
+  const posts: Post[] = (postsData || []).map((p: any) => ({
+    id: p.id,
+    authorPublicKey: p.author_wallet,
+    content: p.content,
+    imageUrl: p.media_url,
+    createdAt: p.created_at,
+    likes: p.likes,
+    authorProfile: p.users ? {
+      username: p.users.username,
+      displayName: p.users.display_name,
+      avatarUrl: p.users.avatar_url,
+    } : undefined,
+  }));
+
   return (
     <>
       <div className="sticky top-16 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
@@ -37,7 +53,7 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      <Feed posts={MOCK_EXPLORE_POSTS} />
+      <Feed posts={posts} />
     </>
   );
 }
