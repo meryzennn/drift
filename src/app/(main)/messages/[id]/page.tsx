@@ -211,7 +211,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   if (!publicKey || !mySecret) return null;
 
   return (
-    <div className="flex flex-col h-[100dvh] md:h-[calc(100vh-112px)] w-full bg-surface-container-lowest border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+    <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full bg-surface-container-lowest border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
         <button onClick={() => router.push("/messages")} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">

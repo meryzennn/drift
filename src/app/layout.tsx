@@ -36,6 +36,7 @@ export default function RootLayout({
           <MobileBottomNav />
           <Toaster 
             position="top-center"
+            containerStyle={{ top: 80 }}
             toastOptions={{
               style: {
                 background: '#1b1b1e',
