@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
-import Link from "next/link";
 
 interface FeedItem {
   type: "post" | "tip_activity";
@@ -139,23 +138,16 @@ export default function Feed({ posts }: FeedProps) {
       {feedItems.map((item, index) => {
         if (item.type === "tip_activity") {
           return (
-            <div key={`tip-${item.post.id}-${index}`}>
-              {/* Tip Activity Banner */}
-              <div className="flex items-center gap-xs px-lg pt-xs pb-0 text-on-surface-variant">
-                <span className="material-symbols-outlined text-[16px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                <Link
-                  href={`/profile/${item.tipper?.username || item.tipper?.wallet}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="font-label-sm hover:underline text-on-surface-variant hover:text-primary transition-colors"
-                >
-                  @{item.tipper?.username || `${item.tipper?.wallet?.slice(0, 6)}...`}
-                </Link>
-                <span className="font-label-sm text-on-surface-variant">
-                  tipped <span className="text-primary font-bold">{item.tipAmount} SOL</span>
-                </span>
-              </div>
-              <PostCard post={item.post} />
-            </div>
+            <PostCard
+              key={`tip-${item.post.id}-${index}`}
+              post={item.post}
+              tipActivity={{
+                tipperUsername: item.tipper?.username,
+                tipperWallet: item.tipper?.wallet || "",
+                tipperAvatar: item.tipper?.avatar_url,
+                amount: item.tipAmount || 0,
+              }}
+            />
           );
         }
         return (

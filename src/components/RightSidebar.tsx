@@ -1,16 +1,13 @@
+"use client";
+
+import SearchBar from "./SearchBar";
+
 export default function RightSidebar() {
   return (
     <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pt-xl pb-lg h-fit">
       
       {/* Search Bar */}
-      <div className="relative">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
-        <input 
-          type="text" 
-          placeholder="Search Drift" 
-          className="w-full bg-surface-container-high text-on-surface rounded-full py-2 pl-10 pr-4 outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary transition-all font-body-sm"
-        />
-      </div>
+      <SearchBar fullWidth />
 
       {/* Trending Section */}
       <div className="bg-surface-container border border-outline-variant rounded-xl p-md">

@@ -35,13 +35,17 @@ export default function RootLayout({
           </div>
           <MobileBottomNav />
           <Toaster 
-            position="bottom-right"
+            position="top-center"
             toastOptions={{
               style: {
                 background: '#1b1b1e',
                 color: '#e4e1e6',
                 border: '1px solid #434655',
+                borderRadius: '12px',
+                fontSize: '14px',
+                maxWidth: '320px',
               },
+              duration: 3000,
             }}
           />
         </WalletContextProvider>

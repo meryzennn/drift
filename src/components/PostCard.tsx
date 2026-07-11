@@ -22,9 +22,15 @@ interface PostCardProps {
   isDetail?: boolean;
   hideReplyIndicator?: boolean;
   isHighlighted?: boolean;
+  tipActivity?: {
+    tipperUsername?: string;
+    tipperWallet: string;
+    tipperAvatar?: string;
+    amount: number;
+  };
 }
 
-export default function PostCard({ post, isDetail = false, hideReplyIndicator = false, isHighlighted = false }: PostCardProps) {
+export default function PostCard({ post, isDetail = false, hideReplyIndicator = false, isHighlighted = false, tipActivity }: PostCardProps) {
   const router = useRouter();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
@@ -39,6 +45,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
   const [isDeleted, setIsDeleted] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isImageViewerMenuOpen, setIsImageViewerMenuOpen] = useState(false);
 
   const [isLikedByMe, setIsLikedByMe] = useState(false);
   const [isRepostedByMe, setIsRepostedByMe] = useState(false);
@@ -173,6 +180,12 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  const formatCount = (n: number): string => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
+    return String(n);
+  };
+
   const handleLikeToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -259,20 +272,33 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
   const handleSaveImage = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!post.imageUrl) return;
+    
+    // Save state to indicate loading (optional, but good UX)
+    const toastId = toast.loading("Saving image...");
     try {
-      const response = await fetch(post.imageUrl);
+      // Use our proxy endpoint to bypass CORS
+      const response = await fetch(`/api/download?url=${encodeURIComponent(post.imageUrl)}`);
+      if (!response.ok) throw new Error("Failed to fetch image");
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `drift-image-${post.id}.jpg`;
+      // Get extension from mime type or default to jpg
+      const ext = blob.type.split('/')[1] || 'jpg';
+      link.download = `drift-image-${post.id}.${ext}`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success("Image saved!");
+      
+      toast.success("Image saved!", { id: toastId });
     } catch (err) {
-      toast.error("Failed to save image.");
+      console.error("Save image error:", err);
+      // Ultimate fallback: open in new tab
+      window.open(post.imageUrl, '_blank');
+      toast.dismiss(toastId);
     }
   };
 
@@ -287,6 +313,81 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
     setIsMenuOpen(false);
     setIsConfirmDeleteOpen(true);
   };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+    toast.success("Link copied to clipboard!");
+  };
+
+  const renderActionBar = (isViewer = false) => (
+    <div className={`${isViewer ? 'p-4 pb-6 flex justify-center w-full' : 'mt-md w-full'}`}>
+      <div className={`flex items-center gap-sm w-full ${isViewer ? 'max-w-[500px] text-white/90 px-xs' : 'text-on-surface-variant'}`}>
+        {/* Comments */}
+        <button className={`flex items-center gap-xs transition-colors group shrink-0 ${isViewer ? 'hover:text-white' : 'hover:text-primary'}`}>
+          <span className={`material-symbols-outlined text-[18px] rounded-full p-xs ${isViewer ? 'group-hover:bg-white/10' : 'group-hover:bg-primary/10'}`}>chat_bubble</span>
+          <span className="font-body-sm text-[12px]">{formatCount(post.commentsCount || 0)}</span>
+        </button>
+        
+        {/* Reposts */}
+        <div className="relative shrink-0">
+          <button 
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsRepostMenuOpen(!isRepostMenuOpen); setIsMenuOpen(false); setIsImageViewerMenuOpen(false); }}
+            className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-[#00BA7C]" : isViewer ? "hover:text-[#00BA7C]" : "hover:text-[#00BA7C]"}`}
+          >
+            <span className={`material-symbols-outlined text-[18px] rounded-full p-xs group-hover:bg-[#00BA7C]/10 ${isRepostedByMe ? "bg-[#00BA7C]/10" : ""}`}>repeat</span>
+            <span className="font-body-sm text-[12px]">{formatCount(localRepostsCount)}</span>
+          </button>
+          
+          {isRepostMenuOpen && (
+            <div 
+              className={`absolute ${isViewer ? 'bottom-full mb-2' : 'bottom-10'} left-0 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={handleRepostClick}
+                className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">repeat</span> {isRepostedByMe ? "Undo Repost" : "Repost"}
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsQuoteModalOpen(true); setIsRepostMenuOpen(false); }}
+                className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors border-t border-outline-variant/50"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit_note</span> Quote
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {/* Likes */}
+        <button 
+          onClick={handleLikeToggle}
+          className={`flex items-center gap-xs transition-colors group shrink-0 ${isLikedByMe ? "text-[#F91880]" : isViewer ? "hover:text-[#F91880]" : "hover:text-[#F91880]"}`}
+        >
+          <span className={`material-symbols-outlined text-[18px] rounded-full p-xs group-hover:bg-[#F91880]/10 ${isLikedByMe ? "bg-[#F91880]/10" : ""}`} style={{ fontVariationSettings: isLikedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+          <span className="font-body-sm text-[12px]">{formatCount(localLikesCount)}</span>
+        </button>
+        
+        {/* Tip area & Share */}
+        <div className="ml-auto flex items-center gap-xs shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); fetchTipSummary(); setIsTipLeaderboardOpen(true); }}
+            className={`flex items-center justify-center border rounded-full p-xs transition-colors ${tipSummary && tipSummary.total > 0 ? (isViewer ? "text-primary border-primary/40 bg-primary/20" : "text-primary border-primary/40 bg-primary/5") : (isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary/10")}`}
+          >
+            <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+          </button>
+          <button
+            onClick={handleTipClick}
+            className={`flex items-center gap-xs border rounded-full px-sm py-xs transition-colors ${isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary-container/10"}`}
+          >
+            <span className="material-symbols-outlined text-[15px]">send</span>
+            <span className="font-label-sm text-[12px]">Tip</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const confirmDelete = async () => {
     setIsActionLoading(true);
@@ -355,6 +456,19 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
       } ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
       onClick={handleCardClick}
     >
+      {tipActivity && (
+        <div className="flex items-center gap-xs text-on-surface-variant font-label-sm mb-[-4px]">
+          <span className="material-symbols-outlined text-[16px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+          <Link
+            href={`/profile/${tipActivity.tipperUsername || tipActivity.tipperWallet}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:underline hover:text-primary transition-colors"
+          >
+            @{tipActivity.tipperUsername || `${tipActivity.tipperWallet.slice(0, 6)}...`}
+          </Link>
+          <span>tipped <span className="text-primary font-bold">{tipActivity.amount} SOL</span></span>
+        </div>
+      )}
       {post.isRepost && post.repostedBy && (
         <div className="flex items-center gap-xs text-on-surface-variant font-label-sm mb-[-8px]">
           <span className="material-symbols-outlined text-[16px]">repeat</span>
@@ -387,55 +501,66 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           )}
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-sm flex-wrap relative">
+          <div className="flex items-center gap-xs relative min-w-0">
             <Link 
               href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
-              className="font-label-md text-on-surface hover:underline"
+              className="font-label-md text-on-surface hover:underline truncate max-w-[120px] shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
               {post.authorProfile?.displayName || "Anonymous User"}
             </Link>
-            <span className="material-symbols-outlined text-[14px] text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+            <span className="material-symbols-outlined text-[14px] text-primary-container shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
             <Link 
               href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
-              className="font-mono text-[14px] text-on-surface-variant hover:underline"
+              className="font-mono text-[12px] text-on-surface-variant hover:underline truncate max-w-[90px] shrink"
               onClick={(e) => e.stopPropagation()}
             >
               @{post.authorProfile?.username || formatAddress(post.authorPublicKey)}
             </Link>
-            <span className="text-on-surface-variant text-sm px-xs">•</span>
-            <span className="font-body-sm text-on-surface-variant" suppressHydrationWarning>
+            <span className="text-on-surface-variant text-sm px-xs shrink-0">•</span>
+            <span className="font-body-sm text-on-surface-variant shrink-0 whitespace-nowrap" suppressHydrationWarning>
               {formatDistanceToNow(new Date(post.createdAt))}
             </span>
 
-            {isOwner && (
-              <div className="ml-auto relative flex items-center">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); setIsRepostMenuOpen(false); }}
-                  className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
+            <div className="ml-auto relative flex items-center">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); setIsRepostMenuOpen(false); }}
+                className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">more_vert</span>
+              </button>
+              
+              {isMenuOpen && (
+                <div 
+                  className="absolute right-0 top-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                </button>
-                
-                {isMenuOpen && (
-                  <div className="absolute right-0 top-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setIsEditing(true); setIsMenuOpen(false); }}
-                      className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">edit</span> Edit
-                    </button>
-                    <button 
-                      onClick={handleDeleteClick}
-                      disabled={isActionLoading}
-                      className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-error/10 text-error font-label-md transition-colors border-t border-outline-variant/50"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">delete</span> Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  <button 
+                    onClick={(e) => { setIsMenuOpen(false); handleShare(e); }}
+                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">ios_share</span> Copy Link
+                  </button>
+                  {isOwner && (
+                    <>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setIsEditing(true); setIsMenuOpen(false); }}
+                        className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors border-t border-outline-variant/50"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">edit</span> Edit
+                      </button>
+                      <button 
+                        onClick={handleDeleteClick}
+                        disabled={isActionLoading}
+                        className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-error/10 text-error font-label-md transition-colors border-t border-outline-variant/50"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           
           {isEditing ? (
@@ -480,7 +605,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
                 <img 
                   src={post.imageUrl} 
                   alt="Post content" 
-                  className="w-full max-h-[512px] object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity"
+                  className="w-full max-h-[600px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
                 />
               )}
@@ -497,103 +622,40 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
               }}
             >
               <div className="flex items-center gap-sm">
-                <div className="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 overflow-hidden border border-outline-variant">
+                <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center shrink-0 overflow-hidden border border-outline-variant">
                   {localQuotePost.authorProfile?.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={localQuotePost.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="material-symbols-outlined text-[14px] text-outline">person</span>
+                    <span className="material-symbols-outlined text-[16px] text-outline">person</span>
                   )}
                 </div>
-                <div className="flex items-center gap-xs text-sm">
-                  <span className="font-bold text-on-surface truncate max-w-[120px]">
+                <div className="flex items-center gap-xs text-sm min-w-0">
+                  <span className="font-bold text-on-surface truncate max-w-[130px]">
                     {localQuotePost.authorProfile?.displayName || "Unknown"}
                   </span>
                   <span className="text-on-surface-variant truncate max-w-[100px]">
                     @{localQuotePost.authorProfile?.username || formatAddress(localQuotePost.authorPublicKey)}
                   </span>
-                  <span className="text-on-surface-variant">·</span>
-                  <span className="text-on-surface-variant shrink-0">{formatDistanceToNow(new Date(localQuotePost.createdAt))}</span>
+                  <span className="text-on-surface-variant shrink-0">·</span>
+                  <span className="text-on-surface-variant shrink-0 whitespace-nowrap">{formatDistanceToNow(new Date(localQuotePost.createdAt))}</span>
                 </div>
               </div>
               
-              <div className="text-on-surface font-body-md break-words line-clamp-3">
+              <div className="text-on-surface font-body-md break-words">
                 {localQuotePost.content}
               </div>
 
               {localQuotePost.imageUrl && (
-                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[200px] mt-xs flex items-center justify-center bg-black/20">
+                <div className="rounded-lg overflow-hidden border border-outline-variant mt-xs">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={localQuotePost.imageUrl} alt="" className="w-full h-full object-contain" />
+                  <img src={localQuotePost.imageUrl} alt="" className="w-full max-h-[300px] object-cover" />
                 </div>
               )}
             </div>
           )}
           
-          <div className="mt-md flex justify-between items-center text-on-surface-variant max-w-[28rem]">
-            <button className="flex items-center gap-xs hover:text-primary transition-colors group">
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-primary/10 rounded-full p-xs">chat_bubble</span>
-              <span className="font-body-sm">{post.commentsCount || 0}</span>
-            </button>
-            
-            <div className="relative">
-              <button 
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsRepostMenuOpen(!isRepostMenuOpen); setIsMenuOpen(false); }}
-                className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-[#00BA7C]" : "hover:text-[#00BA7C]"}`}
-              >
-                <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-[#00BA7C]/10 ${isRepostedByMe ? "bg-[#00BA7C]/10" : ""}`}>repeat</span>
-                <span className="font-body-sm">{localRepostsCount}</span>
-              </button>
-              
-              {isRepostMenuOpen && (
-                <div className="absolute left-0 bottom-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
-                  <button 
-                    onClick={handleRepostClick}
-                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">repeat</span> {isRepostedByMe ? "Undo Repost" : "Repost"}
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setIsQuoteModalOpen(true); setIsRepostMenuOpen(false); }}
-                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors border-t border-outline-variant/50"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">edit_note</span> Quote
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <button 
-              onClick={handleLikeToggle}
-              className={`flex items-center gap-xs transition-colors group ${isLikedByMe ? "text-[#F91880]" : "hover:text-[#F91880]"}`}
-            >
-              <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-[#F91880]/10 ${isLikedByMe ? "bg-[#F91880]/10" : ""}`} style={{ fontVariationSettings: isLikedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
-              <span className="font-body-sm">{localLikesCount}</span>
-            </button>
-            
-            <div className="relative ml-auto flex items-center gap-xs">
-              {/* Coin/Leaderboard button */}
-              <button
-                onClick={(e) => { e.stopPropagation(); fetchTipSummary(); setIsTipLeaderboardOpen(true); }}
-                title="View tip leaderboard"
-                className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary/10 hover:border-primary/40 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                {tipSummary && tipSummary.total > 0 && (
-                  <span className="font-label-sm text-primary">{tipSummary.total.toFixed(3)} SOL</span>
-                )}
-              </button>
-
-              {/* Send Tip button */}
-              <button
-                onClick={handleTipClick}
-                className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px]">send</span>
-                <span className="font-label-sm">Tip</span>
-              </button>
-            </div>
-          </div>
+          {renderActionBar(false)}
         </div>
       </div>
 
@@ -651,36 +713,60 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
       )}
 
       {isImageViewerOpen && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/95 animate-in fade-in duration-200">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsImageViewerOpen(false); }}
-            className="absolute top-4 right-4 md:top-6 md:right-6 w-12 h-12 rounded-full bg-surface-container-high/50 hover:bg-surface-container-highest flex items-center justify-center text-on-surface transition-colors z-10"
-          >
-            <span className="material-symbols-outlined text-[28px]">close</span>
-          </button>
-          
-          <img 
-            src={post.imageUrl} 
-            alt="Full view" 
-            className="max-w-[100vw] max-h-[100vh] object-contain select-none"
-            onClick={(e) => e.stopPropagation()}
-          />
-          
-          <div className="absolute bottom-6 flex gap-4 z-10">
+        <div 
+          className="fixed inset-0 z-[500] flex flex-col bg-black animate-in fade-in duration-200" 
+          onClick={() => { setIsImageViewerMenuOpen(false); setIsRepostMenuOpen(false); }}
+        >
+          {/* Top Bar - Solid Black */}
+          <div className="p-4 md:p-6 flex justify-between items-center z-20 bg-black shrink-0">
             <button 
-              onClick={handleSaveImage}
-              className="px-6 py-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-lg rounded-full flex items-center gap-2 transition-colors shadow-lg border border-outline-variant/50"
+              onClick={(e) => { e.stopPropagation(); setIsImageViewerOpen(false); }}
+              className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors"
             >
-              <span className="material-symbols-outlined">download</span>
-              Save Image
+              <span className="material-symbols-outlined text-[24px]">close</span>
             </button>
-            <button 
-              onClick={handleReport}
-              className="px-6 py-3 bg-error/10 hover:bg-error/20 text-error font-label-lg rounded-full flex items-center gap-2 transition-colors shadow-lg border border-error/20"
-            >
-              <span className="material-symbols-outlined">report</span>
-              Report
-            </button>
+            <div className="relative">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsImageViewerMenuOpen(!isImageViewerMenuOpen); setIsRepostMenuOpen(false); }}
+                className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors"
+              >
+                <span className="material-symbols-outlined text-[24px]">more_horiz</span>
+              </button>
+              {isImageViewerMenuOpen && (
+                <div 
+                  className="absolute right-0 top-full mt-2 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button 
+                    onClick={(e) => { setIsImageViewerMenuOpen(false); handleSaveImage(e); }}
+                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">download</span> Save Image
+                  </button>
+                  <button 
+                    onClick={(e) => { setIsImageViewerMenuOpen(false); handleReport(e); }}
+                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-error/10 text-error font-label-md transition-colors border-t border-outline-variant/50"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">report</span> Report
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Image Container */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden bg-black px-2 md:px-6">
+            <img 
+              src={post.imageUrl} 
+              alt="Full view" 
+              className="max-w-full max-h-full object-contain select-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          
+          {/* Bottom Bar - Solid Black */}
+          <div className="bg-black shrink-0">
+            {renderActionBar(true)}
           </div>
         </div>,
         document.body
