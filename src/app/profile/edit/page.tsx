@@ -138,7 +138,7 @@ export default function EditProfilePage() {
     if (!target) return;
     if (target === "avatar") { setAvatarPreview(gifUrl); setAvatarUrl(gifUrl); setAvatarFile(null); }
     else { setBannerPreview(gifUrl); setBannerUrl(gifUrl); setBannerFile(null); }
-    toast.success("GIF selected!");
+    toast.success("Media selected!");
   }, [mediaPickerTarget]);
 
   const handleFileFromPicker = useCallback((file: File, target: "avatar" | "banner") => {
@@ -505,6 +505,7 @@ export default function EditProfilePage() {
         onFile={(file) => handleFileFromPicker(file, mediaPickerTarget)}
         onGif={handleGifSelect}
         onClose={() => setMediaPickerTarget(null)}
+        showNftTab={true}
       />
     )}
 

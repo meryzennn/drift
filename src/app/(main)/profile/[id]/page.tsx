@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import { useState, useEffect, use } from "react";
+import { createPortal } from "react-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
@@ -36,6 +37,47 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const [followLoading, setFollowLoading] = useState(false);
   const [followsModalConfig, setFollowsModalConfig] = useState<{isOpen: boolean, type: "followers" | "following"}>({isOpen: false, type: "followers"});
   const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const [topTippers, setTopTippers] = useState<any[]>([]);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [leaderboardPage, setLeaderboardPage] = useState(1);
+  const [solPrice, setSolPrice] = useState<number | null>(null);
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(topTippers.length / itemsPerPage);
+  const displayedTippers = topTippers.slice((leaderboardPage - 1) * itemsPerPage, leaderboardPage * itemsPerPage);
+
+  // Fetch live SOL price
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
+        const data = await res.json();
+        if (data?.price) setSolPrice(parseFloat(data.price));
+      } catch {
+        try {
+          const res2 = await fetch("https://price.jup.ag/v6/price?ids=SOL");
+          const data2 = await res2.json();
+          const price = data2?.data?.SOL?.price;
+          if (price) setSolPrice(price);
+        } catch {
+          setSolPrice(null);
+        }
+      }
+    };
+    fetchPrice();
+  }, []);
+
+  // Prevent scroll bleed when modal is open
+  useEffect(() => {
+    if (isLeaderboardOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isLeaderboardOpen]);
 
   useEffect(() => {
     if (id) {
@@ -119,15 +161,39 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         setReplies(repliesData.map(mapPostData));
       }
 
-      // Fetch total tipped received
+      // Fetch total tipped received and leaderboards
       const { data: tipsData } = await supabase
         .from("tips")
-        .select("amount")
+        .select(`
+          amount,
+          from_wallet,
+          sender:users!tips_from_wallet_fkey(username, display_name, avatar_url)
+        `)
         .eq("to_wallet", wallet);
         
       if (tipsData) {
         const total = tipsData.reduce((acc, tip) => acc + tip.amount, 0);
         setTotalTipped(total);
+
+        // Aggregate top tippers
+        const tipperMap = new Map<string, any>();
+        tipsData.forEach(tip => {
+          if (!tip.from_wallet || !tip.sender) return;
+          const current = tipperMap.get(tip.from_wallet) || {
+            wallet: tip.from_wallet,
+            username: (tip.sender as any).username,
+            display_name: (tip.sender as any).display_name,
+            avatar_url: (tip.sender as any).avatar_url,
+            total_amount: 0
+          };
+          current.total_amount += tip.amount;
+          tipperMap.set(tip.from_wallet, current);
+        });
+
+        const sortedTippers = Array.from(tipperMap.values())
+          .sort((a, b) => b.total_amount - a.total_amount);
+          
+        setTopTippers(sortedTippers);
       }
 
       // Fetch posts and profiles tipped BY this user (as sender)
@@ -373,15 +439,26 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
               Link
             </a>
           )}
+          {profile?.wallet_address && (
+            <a href={`https://solscan.io/account/${profile.wallet_address}?cluster=devnet`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-xs px-3 py-1.5 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant rounded-full text-on-surface font-label-sm transition-colors">
+              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+              Solscan
+            </a>
+          )}
         </div>
         
         {/* Stats */}
-        <div className="flex gap-6 mb-2">
-          <div className="flex gap-1 items-baseline ml-auto">
-            <svg className="w-[16px] h-[16px] fill-current text-surface-tint translate-y-0.5 shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
-            <span className="font-label-md text-surface-tint font-bold">{totalTipped} SOL</span>
-            <span className="font-body-sm text-outline">Total Tips Received</span>
-          </div>
+        <div className="flex gap-6 mb-4">
+          <button 
+            onClick={() => setIsLeaderboardOpen(true)}
+            className="flex items-center gap-2 ml-auto px-3 md:px-4 py-1.5 md:py-2 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/50 rounded-full transition-all group shrink-0 whitespace-nowrap"
+          >
+            <div className="flex items-center gap-1 md:gap-1.5 bg-surface-container-highest group-hover:bg-primary/20 px-2 py-0.5 rounded text-surface-tint group-hover:text-primary transition-colors shrink-0">
+              <svg className="w-[18px] h-[14px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
+              <span className="font-label-sm md:font-label-md font-bold">{parseFloat(totalTipped.toFixed(3))} SOL</span>
+            </div>
+            <span className="font-label-sm text-on-surface-variant group-hover:text-on-surface transition-colors ml-1">Total Tips Received</span>
+          </button>
         </div>
       </div>
       
@@ -571,6 +648,114 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             }}
           />
         )}
+        
+      {/* Leaderboard Modal */}
+      {isLeaderboardOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsLeaderboardOpen(false)}></div>
+          <div className="relative z-10 w-[90vw] md:w-[400px] bg-surface-container border border-outline-variant rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex flex-col p-4 border-b border-outline-variant bg-surface-container-low sticky top-0">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-headline-sm font-bold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[24px]">social_leaderboard</span>
+                  Top Tippers
+                </h3>
+                <button 
+                  onClick={() => setIsLeaderboardOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+              <p className="font-body-sm text-on-surface-variant flex items-center gap-1 mt-1">
+                Total Received: <span className="font-bold text-surface-tint">{parseFloat(totalTipped.toFixed(3))} SOL</span>
+                {solPrice && <span className="opacity-80">(~${(totalTipped * solPrice).toFixed(2)})</span>}
+              </p>
+            </div>
+            
+            {/* List */}
+            <div className="overflow-y-auto flex-1 p-2">
+              {topTippers.length === 0 ? (
+                <div className="text-center py-xl text-on-surface-variant">
+                  <span className="material-symbols-outlined text-[40px] mb-2 opacity-50">money_off</span>
+                  <p className="font-body-md">No tips received yet.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {displayedTippers.map((tipper, index) => {
+                    const actualIndex = (leaderboardPage - 1) * itemsPerPage + index;
+                    return (
+                    <Link 
+                      key={tipper.wallet}
+                      href={`/profile/${tipper.username}`}
+                      className="flex items-center gap-3 p-3 hover:bg-surface-container-high rounded-xl transition-colors group"
+                      onClick={() => setIsLeaderboardOpen(false)}
+                    >
+                      <div className="w-8 shrink-0 flex justify-center font-bold font-label-lg text-on-surface-variant">
+                        {actualIndex === 0 ? "🥇" : actualIndex === 1 ? "🥈" : actualIndex === 2 ? "🥉" : `#${actualIndex + 1}`}
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30">
+                        {tipper.avatar_url ? (
+                          <img src={tipper.avatar_url} alt={tipper.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-on-surface font-bold text-sm bg-primary/20 text-primary">
+                            {tipper.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="font-label-md font-bold text-on-surface truncate group-hover:text-primary transition-colors">
+                          {tipper.display_name || tipper.username}
+                        </span>
+                        <span className="font-body-sm text-on-surface-variant truncate">
+                          @{tipper.username}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0 pl-2">
+                        <span className="font-label-md font-bold text-surface-tint flex items-center gap-1">
+                          <svg className="w-[15px] h-[12px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
+                          {parseFloat(tipper.total_amount.toFixed(3))}
+                        </span>
+                        {solPrice && (
+                          <span className="font-label-sm text-surface-tint opacity-70">
+                            (~${(tipper.total_amount * solPrice).toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between p-3 border-t border-outline-variant bg-surface-container-low sticky bottom-0">
+                <button
+                  disabled={leaderboardPage === 1}
+                  onClick={() => setLeaderboardPage(p => p - 1)}
+                  className="px-4 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-50 text-on-surface font-label-sm transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="font-label-sm text-on-surface-variant font-bold">
+                  Page {leaderboardPage} of {totalPages}
+                </span>
+                <button
+                  disabled={leaderboardPage === totalPages}
+                  onClick={() => setLeaderboardPage(p => p + 1)}
+                  className="px-4 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest disabled:opacity-50 text-on-surface font-label-sm transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
       </div>
   );
 }

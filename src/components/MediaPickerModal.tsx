@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
 const VALID_POST_TYPES = [...VALID_IMAGE_TYPES, "video/mp4"];
@@ -21,12 +22,14 @@ interface MediaPickerModalProps {
   onFile: (file: File) => void;
   onGif: (gifUrl: string) => void;
   onClose: () => void;
-  defaultTab?: "upload" | "gif";
+  defaultTab?: "upload" | "gif" | "nft";
   hideTabs?: boolean;
+  showNftTab?: boolean;
 }
 
-export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, defaultTab = "upload", hideTabs = false }: MediaPickerModalProps) {
-  const [tab, setTab] = useState<"upload" | "gif">(defaultTab);
+export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, defaultTab = "upload", hideTabs = false, showNftTab = false }: MediaPickerModalProps) {
+  const { publicKey } = useWallet();
+  const [tab, setTab] = useState<"upload" | "gif" | "nft">(defaultTab);
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +41,11 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
   const [activeCategory, setActiveCategory] = useState(0);
   const [gifLoading, setGifLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // NFT state
+  const [nfts, setNfts] = useState<any[]>([]);
+  const [nftsLoading, setNftsLoading] = useState(false);
+  const [nftsFetched, setNftsFetched] = useState(false);
 
   // Lock body scroll
   useEffect(() => {
@@ -68,6 +76,34 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
     debounceRef.current = setTimeout(() => fetchGifs(search, activeCategory), 400);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search, activeCategory, tab, fetchGifs]);
+
+  // Fetch NFTs
+  useEffect(() => {
+    if (tab !== "nft" || !publicKey || nftsFetched) return;
+    
+    const fetchNfts = async () => {
+      setNftsLoading(true);
+      try {
+        const res = await fetch(`/api/nfts?owner=${publicKey.toString()}`);
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        
+        const validNfts = (data.items || []).filter((nft: any) => {
+          const img = nft.content?.files?.[0]?.uri || nft.content?.links?.image;
+          return !!img;
+        });
+        
+        setNfts(validNfts);
+        setNftsFetched(true);
+      } catch (err) {
+        console.error("Error fetching NFTs:", err);
+      } finally {
+        setNftsLoading(false);
+      }
+    };
+    
+    fetchNfts();
+  }, [tab, publicKey, nftsFetched]);
 
   const validateAndHandle = useCallback((file: File) => {
     setDragError("");
@@ -132,13 +168,10 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
               <span className="material-symbols-outlined text-[18px]">upload</span>
               Upload File
             </button>
-            <button
-              onClick={() => setTab("gif")}
-              className={`flex-1 flex items-center justify-center gap-xs py-md font-label-md transition-colors ${tab === "gif" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
-            >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-6h2v6zm0-8h-2v-2h2v2z"/></svg>
-              GIF
-            </button>
+            <button onClick={() => setTab("gif")} className={`flex-1 py-3 font-label-md transition-colors ${tab === "gif" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}>GIFs</button>
+            {showNftTab && (
+              <button onClick={() => setTab("nft")} className={`flex-1 py-3 font-label-md transition-colors ${tab === "nft" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}>NFTs</button>
+            )}
           </div>
         )}
 
@@ -252,6 +285,53 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
             {API_KEY && (
               <div className="px-xl py-sm border-t border-[#2a2a3a] flex items-center justify-end shrink-0">
                 <span className="font-body-sm text-on-surface-variant">Powered by <strong className="text-on-surface">GIPHY</strong></span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NFT Tab */}
+        {tab === "nft" && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {!publicKey ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center gap-md p-md">
+                <span className="material-symbols-outlined text-[48px] text-outline-variant">account_balance_wallet</span>
+                <div>
+                  <p className="font-label-md text-on-surface mb-xs">Wallet not connected</p>
+                  <p className="font-body-sm text-on-surface-variant">Connect your wallet to browse your NFTs.</p>
+                </div>
+              </div>
+            ) : nftsLoading ? (
+              <div className="flex items-center justify-center flex-1 gap-sm text-on-surface-variant p-md">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="font-body-md">Loading NFTs...</span>
+              </div>
+            ) : nfts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 text-on-surface-variant gap-sm p-md">
+                <span className="material-symbols-outlined text-[40px]">image_not_supported</span>
+                <p className="font-body-md">No NFTs found</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-md">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {nfts.map((nft: any) => {
+                    const imgUrl = nft.content?.files?.[0]?.uri || nft.content?.links?.image;
+                    const name = nft.content?.metadata?.name || "Unknown NFT";
+                    return (
+                      <button 
+                        key={nft.id} 
+                        onClick={() => onGif(imgUrl)} 
+                        className="w-full pt-[100%] rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all group block relative bg-surface-container-high"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={imgUrl} alt={name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 z-10">
+                          <span className="font-label-sm text-white truncate text-left">{name}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
