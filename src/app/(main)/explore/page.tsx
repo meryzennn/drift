@@ -3,7 +3,7 @@
 import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import SearchBar from "@/components/SearchBar";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ interface UserResult {
   avatar_url?: string;
 }
 
-export default function ExplorePage() {
+function ExploreContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialQuery = searchParams.get("q") || "";
@@ -186,5 +186,17 @@ export default function ExplorePage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
+      </div>
+    }>
+      <ExploreContent />
+    </Suspense>
   );
 }
