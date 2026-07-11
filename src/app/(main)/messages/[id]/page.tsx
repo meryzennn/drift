@@ -28,6 +28,8 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [isTipOpen, setIsTipOpen] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [isMutual, setIsMutual] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -61,9 +63,23 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
         if (error) throw error;
 
+        if (convo.user1_wallet !== publicKey.toString() && convo.user2_wallet !== publicKey.toString()) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
+
         const isUser1 = convo.user1_wallet === publicKey.toString();
         const other = isUser1 ? convo.user2 : convo.user1;
         setOtherUser(other);
+        
+        // Check mutual follow
+        const [{ data: follow1 }, { data: follow2 }] = await Promise.all([
+          supabase.from("follows").select("created_at").eq("follower_wallet", publicKey.toString()).eq("following_wallet", other.wallet_address).maybeSingle(),
+          supabase.from("follows").select("created_at").eq("follower_wallet", other.wallet_address).eq("following_wallet", publicKey.toString()).maybeSingle()
+        ]);
+        
+        setIsMutual(!!follow1 && !!follow2);
         
         if (other.chat_pubkey) {
           setOtherPubkey(other.chat_pubkey);
@@ -81,8 +97,9 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         
         fetchMessages(other.chat_pubkey);
       } catch (err) {
-        console.error(err);
-        router.push("/messages");
+        console.error("Convo fetch error:", err);
+        setNotFound(true);
+        setLoading(false);
       }
     };
 
@@ -208,7 +225,40 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  if (!publicKey || !mySecret) return null;
+  if (!publicKey) {
+    return (
+      <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full items-center justify-center bg-surface-container-lowest border border-outline-variant/50 rounded-2xl mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+        <span className="material-symbols-outlined text-[64px] text-outline-variant mb-4">lock</span>
+        <h2 className="text-xl font-bold text-on-surface">Authentication Required</h2>
+        <p className="text-on-surface-variant mb-6 text-center mt-2 px-4 max-w-[300px]">
+          Please connect your wallet to view messages.
+        </p>
+      </div>
+    );
+  }
+
+  if (!mySecret) {
+    return (
+      <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full items-center justify-center bg-surface-container-lowest border border-outline-variant/50 rounded-2xl mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+        <span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full items-center justify-center bg-surface-container-lowest border border-outline-variant/50 rounded-2xl mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+        <span className="material-symbols-outlined text-[64px] text-outline-variant mb-4">chat_bubble_off</span>
+        <h2 className="text-xl font-bold text-on-surface">Conversation Not Found</h2>
+        <p className="text-on-surface-variant mb-6 text-center mt-2 px-4 max-w-[300px]">
+          This conversation doesn't exist or you don't have permission to view it.
+        </p>
+        <button onClick={() => router.push("/messages")} className="bg-primary text-on-primary px-6 py-2 rounded-full font-bold hover:bg-primary/90 transition-colors">
+          Back to Messages
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full bg-surface-container-lowest border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
@@ -316,7 +366,11 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
       {/* Input Area */}
       <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0">
-        {!otherPubkey ? (
+        {!isMutual ? (
+          <div className="text-center p-3 text-on-surface-variant font-label-md bg-surface-container rounded-xl border border-outline-variant/50">
+            You must follow each other to send messages.
+          </div>
+        ) : !otherPubkey ? (
           <div className="text-center p-2 text-error font-label-md bg-error/10 rounded-xl">
             User hasn't enabled DMs yet. They need to unlock DMs in their inbox first.
           </div>

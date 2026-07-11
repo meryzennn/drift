@@ -322,7 +322,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
 
   const renderActionBar = (isViewer = false) => (
     <div className={`${isViewer ? 'p-4 pb-6 flex justify-center w-full' : 'mt-md w-full'}`}>
-      <div className={`flex flex-wrap items-center justify-start gap-4 sm:gap-8 w-full ${isViewer ? 'max-w-[500px] text-white/90 px-xs' : 'text-on-surface-variant'}`}>
+      <div className={`flex items-center w-full ${isViewer ? 'justify-around max-w-[500px] text-white/90 px-xs' : 'justify-between text-on-surface-variant'}`}>
         {/* Comments */}
         <button className={`flex items-center gap-xs transition-colors group shrink-0 ${isViewer ? 'hover:text-white' : 'hover:text-primary'}`}>
           <span className={`material-symbols-outlined text-[18px] rounded-full p-xs ${isViewer ? 'group-hover:bg-white/10' : 'group-hover:bg-primary/10'}`}>chat_bubble</span>
@@ -480,7 +480,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
   return (
     <article 
       id={post.id}
-      className={`bg-surface-container border rounded-xl p-lg flex flex-col gap-md transition-all duration-300 relative ${
+      className={`bg-surface-container border rounded-xl p-4 sm:p-lg flex flex-col gap-3 sm:gap-md transition-all duration-300 relative ${
         isHighlighted 
           ? 'border-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] bg-primary/5 ring-1 ring-primary/30' 
           : 'border-outline-variant'
@@ -627,7 +627,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           
           {post.imageUrl && (
             <div 
-              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low transition-opacity relative group"
+              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low transition-opacity relative group flex items-center justify-center"
             >
               {post.imageUrl.toLowerCase().endsWith(".mp4") ? (
                 <VideoPlayer url={post.imageUrl} />
@@ -636,7 +636,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
                 <img 
                   src={post.imageUrl} 
                   alt="Post content" 
-                  className="w-full max-h-[600px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  className="max-w-full max-h-[600px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
                 />
               )}

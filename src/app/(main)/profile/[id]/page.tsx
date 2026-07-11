@@ -357,6 +357,16 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           }]);
           
         if (error) throw error;
+        
+        // Send notification
+        if (publicKey.toString() !== profile.wallet_address) {
+          await supabase.from("notifications").insert([{
+            user_wallet: profile.wallet_address,
+            actor_wallet: publicKey.toString(),
+            type: "follow"
+          }]);
+        }
+
         setIsFollowing(true);
         setFollowersCount(prev => prev + 1);
       }
