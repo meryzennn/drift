@@ -7,6 +7,7 @@ import { sendTip } from "@/utils/solanaUtils";
 import { useState } from "react";
 import SendTipModal from "./SendTipModal";
 import { supabase } from "@/utils/supabase";
+import toast from "react-hot-toast";
 
 interface PostCardProps {
   post: Post;
@@ -20,7 +21,7 @@ export default function PostCard({ post }: PostCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (!publicKey) {
-      alert("Please connect your wallet first to send a tip.");
+      toast.error("Please connect your wallet first to send a tip.");
       return;
     }
     setIsTipModalOpen(true);
@@ -45,11 +46,11 @@ export default function PostCard({ post }: PostCardProps) {
         console.error("Tip saved on chain but failed to record in DB:", dbError);
       }
 
-      alert(`Tip of ${amount} SOL sent successfully!`);
+      toast.success(`Tip of ${amount} SOL sent successfully!`);
       setIsTipModalOpen(false);
     } catch (error) {
       console.error("Tip failed:", error);
-      alert("Failed to send tip. See console for details.");
+      toast.error("Failed to send tip. See console for details.");
     }
   };
 
@@ -58,11 +59,48 @@ export default function PostCard({ post }: PostCardProps) {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  const handleRepostClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!publicKey) {
+      toast.error("Please connect your wallet first to repost.");
+      return;
+    }
+    
+    try {
+      const { error: dbError } = await supabase.from("reposts").insert([
+        {
+          user_wallet: publicKey.toString(),
+          post_id: post.id,
+        }
+      ]);
+      
+      if (dbError) {
+        if (dbError.code === '23505') { // Unique constraint violation
+          toast.error("You have already reposted this!");
+        } else {
+          throw dbError;
+        }
+        return;
+      }
+      
+      toast.success("Post reposted successfully!");
+    } catch (error) {
+      console.error("Repost failed:", error);
+      toast.error("Failed to repost.");
+    }
+  };
+
   return (
     <article className="bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md hover:bg-surface-container-low transition-colors duration-200 cursor-pointer mb-md">
       <div className="flex items-start gap-md">
         <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center font-bold text-primary">
-          {post.authorPublicKey.slice(0, 2)}
+          {post.authorProfile?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={post.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            post.authorPublicKey.slice(0, 2)
+          )}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-sm flex-wrap">
@@ -96,7 +134,10 @@ export default function PostCard({ post }: PostCardProps) {
               <span className="font-body-sm">0</span>
             </button>
             
-            <button className="flex items-center gap-xs hover:text-secondary transition-colors group">
+            <button 
+              onClick={handleRepostClick}
+              className="flex items-center gap-xs hover:text-secondary transition-colors group"
+            >
               <span className="material-symbols-outlined text-[20px] group-hover:bg-secondary/10 rounded-full p-xs">repeat</span>
               <span className="font-body-sm">0</span>
             </button>

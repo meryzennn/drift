@@ -8,8 +8,23 @@ CREATE TABLE IF NOT EXISTS public.users (
     username TEXT UNIQUE NOT NULL,
     display_name TEXT,
     avatar_url TEXT,
+    banner_url TEXT,
+    bio TEXT,
+    x_link TEXT,
+    telegram_link TEXT,
+    instagram_link TEXT,
+    custom_link TEXT,
     has_set_username_once BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- REPOSTS TABLE
+CREATE TABLE IF NOT EXISTS public.reposts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_wallet, post_id)
 );
 
 -- POSTS TABLE
@@ -78,3 +93,15 @@ CREATE POLICY "Tips are viewable by everyone" ON public.tips
 -- Anyone can insert tips
 CREATE POLICY "Anyone can insert tips" ON public.tips
     FOR INSERT WITH CHECK (true);
+
+-- POLICIES FOR REPOSTS
+ALTER TABLE public.reposts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Reposts are viewable by everyone" ON public.reposts
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert reposts" ON public.reposts
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can delete own reposts" ON public.reposts
+    FOR DELETE USING (true);

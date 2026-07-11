@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function CreatePost() {
   const { connected, publicKey } = useWallet();
@@ -58,10 +59,11 @@ export default function CreatePost() {
       // 3. Reset and Refresh
       setContent("");
       setFile(null);
+      toast.success("Post created successfully!");
       router.refresh(); // Reload server components (Feed)
     } catch (error) {
       console.error("Error creating post:", error);
-      alert("Failed to create post. See console.");
+      toast.error("Failed to create post. See console.");
     } finally {
       setLoading(false);
     }

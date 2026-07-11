@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletContextProvider } from "@/components/providers/WalletContextProvider";
+import { Toaster } from "react-hot-toast";
 
 import Navbar from "@/components/Navbar";
 import MobileBottomNav from "@/components/MobileBottomNav";
@@ -31,6 +32,16 @@ export default function RootLayout({
             {children}
           </div>
           <MobileBottomNav />
+          <Toaster 
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: '#1b1b1e',
+                color: '#e4e1e6',
+                border: '1px solid #434655',
+              },
+            }}
+          />
         </WalletContextProvider>
       </body>
     </html>
