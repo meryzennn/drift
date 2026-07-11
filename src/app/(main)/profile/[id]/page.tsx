@@ -26,10 +26,11 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
+  const [mentions, setMentions] = useState<Post[]>([]);
   const [tippedItems, setTippedItems] = useState<{ type: "post" | "profile"; post?: Post; recipient?: any; wallet?: string; amount: number; createdAt: string; id: string }[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts" | "mentions">("posts");
   const [notFound, setNotFound] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -160,6 +161,27 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
 
       if (repliesData) {
         setReplies(repliesData.map(mapPostData));
+      }
+
+      // Fetch user mentions
+      const { data: mentionsData } = await supabase
+        .from("notifications")
+        .select(`
+          created_at,
+          posts!notifications_post_id_fkey(${POST_SELECT_QUERY})
+        `)
+        .eq("user_wallet", wallet)
+        .eq("type", "mention")
+        .order("created_at", { ascending: false });
+
+      if (mentionsData) {
+        const formattedMentions = mentionsData
+          .filter((m: any) => m.posts)
+          .map((m: any) => mapPostData(Array.isArray(m.posts) ? m.posts[0] : m.posts));
+        
+        // Remove duplicates if the user was mentioned multiple times in the same post
+        const uniqueMentions = Array.from(new Map(formattedMentions.map(p => [p.id, p])).values());
+        setMentions(uniqueMentions);
       }
 
       // Fetch total tipped received and leaderboards
@@ -543,6 +565,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         >
           Tips
         </button>
+        <button 
+          onClick={() => setActiveTab("mentions")}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "mentions" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+        >
+          Mentions
+        </button>
       </div>
 
       {/* Feed Content */}
@@ -566,6 +594,18 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             <div className="flex flex-col gap-md">
               {replies.map((reply, index) => (
                 <PostCard key={`reply-${reply.id}-${index}`} post={reply} />
+              ))}
+            </div>
+          )
+        )}
+
+        {activeTab === "mentions" && (
+          mentions.length === 0 ? (
+            <div className="text-center py-xl text-on-surface-variant font-body-md">No mentions yet.</div>
+          ) : (
+            <div className="flex flex-col gap-md">
+              {mentions.map((mention, index) => (
+                <PostCard key={`mention-${mention.id}-${index}`} post={mention} />
               ))}
             </div>
           )

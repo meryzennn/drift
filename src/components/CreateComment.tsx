@@ -6,6 +6,7 @@ import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
+import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
@@ -16,7 +17,15 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { suggestions, showDropdown, handleSelect } = useMentionAutocomplete(
+    content,
+    cursorPos,
+    setContent
+  );
 
   useEffect(() => {
     const fetchAvatar = async () => {
@@ -76,6 +85,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
 
       if (error) throw error;
       
+      // Notify original post author
       if (postAuthor && publicKey.toString() !== postAuthor) {
         await supabase.from("notifications").insert([{
           user_wallet: postAuthor,
@@ -83,6 +93,25 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
           type: "reply",
           post_id: data.id // The new reply post ID
         }]);
+      }
+
+      // Handle mentions
+      const mentions = Array.from(new Set(content.match(/@([a-zA-Z0-9_]+)/g)?.map(m => m.slice(1)) || []));
+      if (mentions.length > 0) {
+        const { data: users } = await supabase.from('users').select('wallet_address, username').in('username', mentions);
+        if (users && users.length > 0) {
+          // Filter out the post author if they were already notified for the reply
+          const mentionUsers = users.filter(u => u.wallet_address !== postAuthor);
+          if (mentionUsers.length > 0) {
+            const notifications = mentionUsers.map(u => ({
+              user_wallet: u.wallet_address,
+              actor_wallet: publicKey.toString(),
+              type: "mention",
+              post_id: data.id
+            }));
+            await supabase.from('notifications').insert(notifications);
+          }
+        }
       }
 
       setContent("");
@@ -168,6 +197,19 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if ((content.trim() || file || gifUrl) && !loading && content.length <= 255) {
+        handleSubmit(e as unknown as React.FormEvent);
+      }
+    }
+  };
+
+  const updateCursor = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    setCursorPos(e.currentTarget.selectionStart);
+  };
+
   return (
     <div className="bg-surface-container-low border border-outline-variant rounded-xl p-md flex gap-md w-full my-sm shadow-sm transition-colors focus-within:bg-surface-container focus-within:border-primary/50">
       <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center text-primary font-bold">
@@ -178,17 +220,52 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
           publicKey?.toString().slice(0, 2)
         )}
       </div>
-      <div className="flex-1">
+      <div className="flex-1 relative">
         <form onSubmit={handleSubmit}>
           <textarea
+            ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, 255))}
+            onChange={(e) => {
+              setContent(e.target.value.slice(0, 255));
+              updateCursor(e);
+            }}
+            onClick={updateCursor}
+            onKeyUp={updateCursor}
             onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
             maxLength={255}
             className="w-full bg-transparent border-none text-on-surface placeholder:text-on-surface-variant font-body-md resize-none focus:ring-0 p-0 min-h-[60px] outline-none"
             placeholder="Post your reply"
           ></textarea>
           
+          {showDropdown && suggestions.length > 0 && (
+            <div className="absolute z-50 bg-surface-container border border-outline-variant rounded-lg shadow-lg w-64 max-h-48 overflow-y-auto mt-1">
+              {suggestions.map((user) => (
+                <button
+                  key={user.username}
+                  type="button"
+                  onClick={() => handleSelect(user.username, textareaRef)}
+                  className="w-full text-left px-3 py-2 hover:bg-surface-container-high flex items-center gap-3 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/20 shrink-0">
+                    {user.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-primary uppercase">
+                        {user.username.slice(0,2)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col truncate">
+                    <span className="font-label-md text-on-surface truncate">{user.display_name || user.username}</span>
+                    <span className="font-body-sm text-on-surface-variant truncate">@{user.username}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {(file || gifUrl) && (
             <div className="relative inline-block mt-sm mb-xs">
               {file && file.type === "video/mp4" ? (
@@ -231,17 +308,20 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
                 <span className="material-symbols-outlined text-[20px]">gif_box</span>
               </button>
             </div>
-            <div className="flex items-center gap-md">
-              <span className={`font-body-sm ${content.length >= 240 ? 'text-error' : 'text-on-surface-variant'}`}>
-                {content.length}/255
-              </span>
-              <button
-                type="submit"
-                disabled={(!content.trim() && !file && !gifUrl) || loading || content.length > 255}
-                className="bg-primary-container text-on-primary-container px-lg py-1.5 rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50"
-              >
-                {loading ? "Replying..." : "Reply"}
-              </button>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-md">
+                <span className={`font-body-sm ${content.length >= 240 ? 'text-error' : 'text-on-surface-variant'}`}>
+                  {content.length}/255
+                </span>
+                <button
+                  type="submit"
+                  disabled={(!content.trim() && !file && !gifUrl) || loading || content.length > 255}
+                  className="bg-primary-container text-on-primary-container px-lg py-1.5 rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50"
+                >
+                  {loading ? "Replying..." : "Reply"}
+                </button>
+              </div>
+              <span className="text-[10px] text-on-surface-variant/70 hidden sm:block">Press Enter to reply, Shift+Enter for new line</span>
             </div>
           </div>
         </form>
