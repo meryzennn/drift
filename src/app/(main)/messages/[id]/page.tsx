@@ -315,7 +315,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {/* Input Area */}
-      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0 mb-16 md:mb-0">
+      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0">
         {!otherPubkey ? (
           <div className="text-center p-2 text-error font-label-md bg-error/10 rounded-xl">
             User hasn't enabled DMs yet. They need to unlock DMs in their inbox first.

@@ -39,7 +39,7 @@ export const WalletContextProvider: FC<Props> = ({ children }) => {
       // Typically handled via a toast notification like react-hot-toast
       console.error("Wallet Error:", error);
       if (error.name === "WalletSignTransactionError" || error.name === "WalletConnectionError") {
-         toast.error("Permintaan wallet dibatalkan atau ditolak.");
+         toast.error("The wallet request was canceled or rejected.");
       }
     },
     []

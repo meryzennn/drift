@@ -4,7 +4,7 @@ import SearchBar from "./SearchBar";
 
 export default function RightSidebar() {
   return (
-    <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pt-xl pb-lg h-fit">
+    <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pt-xl pb-lg h-[calc(100vh-64px)] overflow-y-auto hide-scrollbar">
       
       {/* Search Bar */}
       <SearchBar fullWidth />

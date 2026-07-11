@@ -123,41 +123,47 @@ export default function MessagesHub() {
 
   if (!publicKey) {
     return (
-      <div className="w-full min-w-0 flex flex-col items-center justify-center min-h-[50vh] p-4 text-center">
-        <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4">account_balance_wallet</span>
-        <h2 className="font-headline-sm font-bold text-on-surface mb-2 w-full">Connect Wallet</h2>
-        <p className="font-body-md text-on-surface-variant max-w-md w-full mx-auto">Connect your Solana wallet to view and send direct messages.</p>
+      <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[50vh] p-4 text-center">
+        <div className="w-full max-w-[448px] mx-auto">
+          <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4 block mx-auto">account_balance_wallet</span>
+          <h2 className="font-headline-sm font-bold text-on-surface mb-2">Connect Wallet</h2>
+          <p className="font-body-md text-on-surface-variant">Connect your Solana wallet to view and send direct messages.</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="w-full min-w-0 flex flex-col items-center justify-center min-h-[60vh] p-4 text-center animate-in fade-in zoom-in-95 duration-300">
-        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 shrink-0">
-          <span className="material-symbols-outlined text-[40px] text-primary">enhanced_encryption</span>
+      <div className="w-full flex-1 flex flex-col items-center justify-center min-h-[60vh] p-4 text-center animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full max-w-[448px] mx-auto">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 shrink-0 mx-auto">
+            <span className="material-symbols-outlined text-[40px] text-primary">enhanced_encryption</span>
+          </div>
+          <h2 className="font-headline-md font-bold text-on-surface mb-3">End-to-End Encrypted DMs</h2>
+          <p className="font-body-md text-on-surface-variant mb-8">
+            Drift uses full Web3 encryption. Your messages are completely private and cannot be read by anyone else, not even the server.
+          </p>
+          <div className="flex justify-center w-full">
+            <button
+              onClick={handleAuthenticate}
+              disabled={authLoading}
+              className="px-6 py-3 bg-primary text-on-primary font-label-lg font-bold rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {authLoading ? (
+                <>
+                  <span className="material-symbols-outlined animate-spin">sync</span>
+                  Unlocking...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">lock_open</span>
+                  Unlock Messages
+                </>
+              )}
+            </button>
+          </div>
         </div>
-        <h2 className="font-headline-md font-bold text-on-surface mb-3 w-full">End-to-End Encrypted DMs</h2>
-        <p className="font-body-md text-on-surface-variant max-w-md w-full mx-auto mb-8">
-          Drift uses full Web3 encryption. Your messages are completely private and cannot be read by anyone else, not even the server.
-        </p>
-        <button
-          onClick={handleAuthenticate}
-          disabled={authLoading}
-          className="px-6 py-3 bg-primary text-on-primary font-label-lg font-bold rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
-          {authLoading ? (
-            <>
-              <span className="material-symbols-outlined animate-spin">sync</span>
-              Unlocking...
-            </>
-          ) : (
-            <>
-              <span className="material-symbols-outlined">lock_open</span>
-              Unlock Messages
-            </>
-          )}
-        </button>
       </div>
     );
   }
