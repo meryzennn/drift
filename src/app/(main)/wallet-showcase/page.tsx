@@ -86,7 +86,7 @@ export default function WalletShowcase() {
         <div className="relative w-full h-[400px] border border-[#27272a] rounded-xl bg-[#000000] overflow-hidden flex items-center justify-center">
           <div className="absolute inset-0 glass-modal pointer-events-auto"></div>
           
-          <div className="relative z-10 w-full max-w-md bg-[#09090b] border border-[#27272a] rounded-[12px] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+          <div className="relative z-10 w-full max-w-[28rem] bg-[#09090b] border border-[#27272a] rounded-[12px] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
             {/* Modal Header */}
             <div className="flex justify-between items-center p-md border-b border-[#27272a]">
               <h3 className="font-headline-md text-on-background">Connect a Wallet</h3>

@@ -1,6 +1,6 @@
 export default function RightSidebar() {
   return (
-    <aside className="hidden xl:flex flex-col gap-lg w-80 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pt-xl pb-lg hide-scrollbar">
+    <aside className="hidden xl:flex flex-col gap-lg w-[320px] sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pt-xl pb-lg hide-scrollbar">
       
       {/* Search Bar */}
       <div className="relative">

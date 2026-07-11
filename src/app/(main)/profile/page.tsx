@@ -203,7 +203,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-        <p className="font-body-md text-on-surface-variant mb-4 leading-relaxed max-w-2xl whitespace-pre-wrap">
+        <p className="font-body-md text-on-surface-variant mb-4 leading-relaxed max-w-[42rem] whitespace-pre-wrap">
           {profile?.bio || "Welcome to your decentralised profile on Drift."}
         </p>
 

@@ -7,9 +7,9 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="w-full flex justify-start gap-lg xl:gap-xl mt-lg pb-2xl md:pb-0 min-h-screen px-4 md:px-8 xl:px-16">
+    <div className="w-full max-w-7xl mx-auto flex justify-center gap-6 mt-lg pb-2xl md:pb-0 min-h-screen px-4 md:px-8 xl:px-4">
       <LeftSidebar />
-      <main className="w-full max-w-[42rem] flex-1 flex flex-col gap-md">
+      <main className="w-full max-w-[600px] flex flex-col gap-md">
         {children}
       </main>
       <RightSidebar />

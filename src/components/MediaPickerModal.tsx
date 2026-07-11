@@ -95,7 +95,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose }
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
       
       <div
-        className="relative w-full max-w-lg bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-[32rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         style={{ maxHeight: "85vh" }}
       >
         {/* Header */}

@@ -73,7 +73,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-md">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "85vh" }}>
+      <div className="relative w-full max-w-[42rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "85vh" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-xl py-md border-b border-[#2a2a3a] shrink-0">
           <div className="flex items-center gap-sm">
