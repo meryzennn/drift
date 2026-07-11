@@ -252,7 +252,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
     );
   }
 
-  // Cek apakah user yang login adalah pemilik profil ini
+  // Check if the logged-in user is the owner of this profile
   const isOwner = connected && publicKey?.toString() === profile?.wallet_address;
 
   return (
