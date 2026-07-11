@@ -7,8 +7,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import PostSkeleton from "./skeletons/PostSkeleton";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Virtuoso } from "react-virtuoso";
+import { useRef } from "react";
 
 interface FeedItem {
   type: "post" | "tip_activity";
@@ -22,9 +23,22 @@ interface FeedProps {
   posts: Post[];
 }
 
+const getCache = () => {
+  if (typeof window === 'undefined') return { index: {} as Record<string, number> };
+  if (!(window as any)._feedCache) {
+    (window as any)._feedCache = { index: {} };
+  }
+  return (window as any)._feedCache;
+};
+
 export default function Feed({ posts }: FeedProps) {
   const { publicKey } = useWallet();
   const router = useRouter();
+  const pathname = usePathname(); // We need pathname to key the cache
+  const virtuosoRef = useRef<any>(null);
+
+  // We don't need manual scroll restoration, react-virtuoso handles it with initialTopMostItemIndex
+  // The index is saved continuously in rangeChanged
 
   const [internalPosts, setInternalPosts] = useState<Post[]>(posts);
   const [hasMore, setHasMore] = useState(posts.length >= 10);
@@ -232,7 +246,7 @@ export default function Feed({ posts }: FeedProps) {
           <p className="font-body-sm text-on-surface-variant mt-1">No more posts to show.</p>
           <button
             onClick={() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              window.scrollTo({ top: 0, behavior: "auto" });
               router.refresh();
             }}
             className="mt-4 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-full font-label-sm transition-colors flex items-center gap-2 mx-auto"
@@ -253,7 +267,7 @@ export default function Feed({ posts }: FeedProps) {
         <div className="sticky top-[72px] z-30 flex justify-center mb-md pointer-events-none">
           <button
             onClick={() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              window.scrollTo({ top: 0, behavior: "auto" });
               router.refresh();
             }}
             className="pointer-events-auto bg-primary text-on-primary font-bold font-label-md px-6 py-2.5 rounded-full shadow-xl shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
@@ -265,6 +279,7 @@ export default function Feed({ posts }: FeedProps) {
       )}
 
       <Virtuoso
+        ref={virtuosoRef}
         useWindowScroll
         data={feedItems}
         computeItemKey={(index, item) => `${item.type}-${item.post.id}-${item.sortKey}`}
@@ -272,6 +287,10 @@ export default function Feed({ posts }: FeedProps) {
         overscan={400}
         itemContent={itemContent}
         components={{ Footer }}
+        initialTopMostItemIndex={getCache().index[pathname] || 0}
+        rangeChanged={(range) => {
+          getCache().index[pathname] = range.startIndex;
+        }}
       />
     </div>
   );

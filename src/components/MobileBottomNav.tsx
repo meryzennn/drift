@@ -26,6 +26,11 @@ export default function MobileBottomNav() {
             key={link.href} 
             href={link.href}
             onClick={(e) => {
+              // Clear feed scroll cache on explicit navigation
+              if (typeof window !== 'undefined') {
+                (window as any)._feedCache = { index: {} };
+              }
+              
               if (isActive) {
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: "smooth" });

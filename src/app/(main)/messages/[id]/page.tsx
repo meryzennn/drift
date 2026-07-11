@@ -220,8 +220,13 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         setIsTipOpen(false);
         handleSend(message || "", undefined, amount);
       }
-    } catch (err) {
-      toast.error("Failed to tip");
+    } catch (err: any) {
+      if (err?.message?.includes("User rejected") || err?.name === "WalletSendTransactionError" || err?.message?.includes("cancelled")) {
+        toast.info("Tip cancelled");
+      } else {
+        console.error("Tip error:", err);
+        toast.error("Failed to tip");
+      }
     }
   };
 
