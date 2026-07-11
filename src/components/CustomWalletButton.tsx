@@ -1,14 +1,49 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { supabase } from "@/utils/supabase";
 import WalletModal from "./WalletModal";
 
 export default function CustomWalletButton() {
   const { connected, publicKey, disconnect } = useWallet();
+  const { connection } = useConnection();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch avatar
+  useEffect(() => {
+    if (connected && publicKey) {
+      supabase
+        .from("users")
+        .select("avatar_url")
+        .eq("wallet_address", publicKey.toString())
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.avatar_url) {
+            setAvatarUrl(data.avatar_url);
+          } else {
+            setAvatarUrl(null);
+          }
+        });
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [connected, publicKey]);
+
+  // Fetch balance when dropdown opens
+  useEffect(() => {
+    if (connected && publicKey && isDropdownOpen) {
+      connection.getBalance(publicKey).then((lamports) => {
+        setBalance(lamports / LAMPORTS_PER_SOL);
+      }).catch(console.error);
+    }
+  }, [connected, publicKey, connection, isDropdownOpen]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -65,7 +100,12 @@ export default function CustomWalletButton() {
           {/* Header */}
           <div className="p-md border-b border-[#27272a] flex items-center gap-md">
             <div className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden shrink-0 border border-[#27272a] flex items-center justify-center font-bold text-on-surface">
-              {shortAddress[0]}
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                shortAddress[0]
+              )}
             </div>
             <div className="flex flex-col">
               <span className="font-mono text-on-background">{shortAddress}</span>
@@ -76,7 +116,9 @@ export default function CustomWalletButton() {
           <div className="p-md border-b border-[#27272a] flex flex-col gap-xs">
             <span className="font-label-sm text-[#a1a1aa] uppercase tracking-wider">Balance</span>
             <div className="flex items-end gap-xs">
-              <span className="font-headline-md text-on-background">--</span>
+              <span className="font-headline-md text-on-background">
+                {balance !== null ? balance.toFixed(4) : "--"}
+              </span>
               <span className="font-body-sm text-[#a1a1aa] pb-[2px]">SOL</span>
             </div>
           </div>
@@ -102,6 +144,14 @@ export default function CustomWalletButton() {
               <span className="material-symbols-outlined text-[18px]">open_in_new</span>
               View on Explorer
             </a>
+            <Link 
+              href="/settings"
+              onClick={() => setIsDropdownOpen(false)}
+              className="flex items-center gap-sm p-sm rounded-md hover:bg-[#27272a] text-on-surface transition-colors font-label-md w-full text-left cursor-pointer border-none bg-transparent"
+            >
+              <span className="material-symbols-outlined text-[18px]">settings</span>
+              Settings
+            </Link>
           </div>
           <div className="p-xs border-t border-[#27272a]">
             <button 

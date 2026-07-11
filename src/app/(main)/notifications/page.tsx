@@ -51,39 +51,58 @@ function NotificationIcon({ type }: { type: string }) {
 
 function NotificationMessage({ n }: { n: AppNotification }) {
   const actor = n.actor?.username ? `@${n.actor.username}` : "Someone";
+  const actorLink = `/profile/${n.actor?.username || n.actor_wallet}`;
+
+  const ActorName = () => (
+    <Link href={actorLink} className="font-bold hover:underline text-on-surface" onClick={(e) => e.stopPropagation()}>
+      {actor}
+    </Link>
+  );
 
   switch (n.type) {
     case "like":
       return (
-        <p className="font-body-md text-on-surface">
-          <span className="font-bold">{actor}</span> liked your post
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> liked your post
         </p>
       );
     case "repost":
       return (
-        <p className="font-body-md text-on-surface">
-          <span className="font-bold">{actor}</span> reposted your post
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> reposted your post
         </p>
       );
     case "reply":
       return (
-        <p className="font-body-md text-on-surface">
-          <span className="font-bold">{actor}</span> replied to your post
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> replied to your post
         </p>
       );
     case "tip":
-      return (
-        <p className="font-body-md text-on-surface">
-          <span className="font-bold">{actor}</span> sent you a tip of{" "}
-          <span className="font-mono font-bold text-tertiary bg-tertiary/10 px-1 rounded">
-            {n.amount} SOL
-          </span>
-        </p>
-      );
+      if (n.post_id) {
+        return (
+          <p className="font-body-md text-on-surface-variant">
+            <ActorName /> sent you a tip of{" "}
+            <span className="font-mono font-bold text-tertiary bg-tertiary/10 px-1 rounded">
+              {n.amount} SOL
+            </span>
+          </p>
+        );
+      } else {
+        return (
+          <p className="font-body-md text-on-surface-variant">
+            <ActorName /> donated{" "}
+            <span className="font-mono font-bold text-tertiary bg-tertiary/10 px-1 rounded">
+              {n.amount} SOL
+            </span>{" "}
+            directly to your profile
+          </p>
+        );
+      }
     case "follow":
       return (
-        <p className="font-body-md text-on-surface">
-          <span className="font-bold">{actor}</span> started following you
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> started following you
         </p>
       );
     default:
@@ -239,18 +258,20 @@ export default function NotificationsPage() {
               <div className="flex-1 min-w-0">
                 {/* Actor avatar + message */}
                 <div className="flex items-center gap-sm mb-xs">
-                  {n.actor?.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={n.actor.avatar_url}
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover border border-outline-variant shrink-0"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-[12px] shrink-0">
-                      {n.actor?.username?.[0]?.toUpperCase() ?? "?"}
-                    </div>
-                  )}
+                  <Link href={`/profile/${n.actor?.username || n.actor_wallet}`} onClick={(e) => e.stopPropagation()} className="hover:opacity-80 transition-opacity">
+                    {n.actor?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={n.actor.avatar_url}
+                        alt=""
+                        className="w-8 h-8 rounded-full object-cover border border-outline-variant shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-[12px] shrink-0">
+                        {n.actor?.username?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    )}
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <NotificationMessage n={n} />
                   </div>

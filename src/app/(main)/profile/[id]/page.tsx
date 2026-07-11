@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import { useState, useEffect, use } from "react";
@@ -10,26 +11,30 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import FollowsModal from "@/components/FollowsModal";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
+import NFTGrid from "@/components/NFTGrid";
+import SendTipModal from "@/components/SendTipModal";
+import { sendTip } from "@/utils/solanaUtils";
 
 export default function DynamicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, sendTransaction } = useWallet();
   const router = useRouter();
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
-  const [tippedPosts, setTippedPosts] = useState<{ post: Post; amount: number; createdAt: string }[]>([]);
+  const [tippedItems, setTippedItems] = useState<{ type: "post" | "profile"; post?: Post; recipient?: any; wallet?: string; amount: number; createdAt: string; id: string }[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts">("posts");
   const [notFound, setNotFound] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followsModalConfig, setFollowsModalConfig] = useState<{isOpen: boolean, type: "followers" | "following"}>({isOpen: false, type: "followers"});
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -123,28 +128,44 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         setTotalTipped(total);
       }
 
-      // Fetch posts tipped BY this user (as sender)
+      // Fetch posts and profiles tipped BY this user (as sender)
       const { data: tipNotifs } = await supabase
         .from("notifications")
         .select(`
+          id,
           amount,
           created_at,
           post_id,
-          post:posts!notifications_post_id_fkey(${POST_SELECT_QUERY})
+          user_wallet,
+          post:posts!notifications_post_id_fkey(${POST_SELECT_QUERY}),
+          recipient:users!notifications_user_wallet_fkey(username, display_name, avatar_url)
         `)
         .eq("actor_wallet", wallet)
         .eq("type", "tip")
         .order("created_at", { ascending: false });
 
       if (tipNotifs) {
-        const mapped = tipNotifs
-          .filter((t: any) => t.post)
-          .map((t: any) => ({
-            post: mapPostData(Array.isArray(t.post) ? t.post[0] : t.post),
-            amount: t.amount || 0,
-            createdAt: t.created_at,
-          }));
-        setTippedPosts(mapped);
+        const mapped = tipNotifs.map((t: any) => {
+          if (t.post) {
+            return {
+              type: "post" as const,
+              id: t.id,
+              post: mapPostData(Array.isArray(t.post) ? t.post[0] : t.post),
+              amount: t.amount || 0,
+              createdAt: t.created_at,
+            };
+          } else {
+            return {
+              type: "profile" as const,
+              id: t.id,
+              recipient: Array.isArray(t.recipient) ? t.recipient[0] : t.recipient,
+              wallet: t.user_wallet,
+              amount: t.amount || 0,
+              createdAt: t.created_at,
+            };
+          }
+        });
+        setTippedItems(mapped);
       }
       
       // Fetch follow stats
@@ -256,7 +277,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       <div className="pt-20 px-4 md:px-6 pb-6 border-b border-outline-variant">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h1 className="font-headline-lg text-headline-lg md:text-headline-lg text-on-background font-bold tracking-tight">{profile?.display_name || "Anonymous User"}</h1>
+            <div className="flex items-center gap-xs">
+              <h1 className="font-headline-lg text-headline-lg md:text-headline-lg text-on-background font-bold tracking-tight">{profile?.display_name || "Anonymous User"}</h1>
+              <span className="material-symbols-outlined text-[24px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+            </div>
             <p className="font-mono text-[14px] text-outline mt-1 flex items-center gap-1">
               @{profile?.username || formatAddress(profile?.wallet_address || "")}
               <span 
@@ -280,13 +304,22 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                 Edit Profile
               </button>
             ) : (
-              <button 
-                onClick={handleFollowToggle}
-                disabled={followLoading}
-                className={`px-4 py-2 rounded-lg font-label-md transition-colors disabled:opacity-50 ${isFollowing ? "border border-outline-variant text-on-surface hover:border-error hover:text-error hover:bg-error/10" : "bg-primary text-on-primary hover:bg-primary/90"}`}
-              >
-                {followLoading ? "Wait..." : isFollowing ? "Following" : "Follow"}
-              </button>
+              <>
+                <button 
+                  onClick={() => setIsDonateOpen(true)}
+                  className="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-high rounded-lg font-label-md transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-[18px] h-[18px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
+                  Donate
+                </button>
+                <button 
+                  onClick={handleFollowToggle}
+                  disabled={followLoading}
+                  className={`px-4 py-2 rounded-lg font-label-md transition-colors disabled:opacity-50 ${isFollowing ? "border border-outline-variant text-on-surface hover:border-error hover:text-error hover:bg-error/10" : "bg-primary text-on-primary hover:bg-primary/90"}`}
+                >
+                  {followLoading ? "Wait..." : isFollowing ? "Following" : "Follow"}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -343,7 +376,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         {/* Stats */}
         <div className="flex gap-6 mb-2">
           <div className="flex gap-1 items-baseline ml-auto">
-            <span className="material-symbols-outlined text-[16px] text-surface-tint translate-y-0.5">payments</span>
+            <svg className="w-[16px] h-[16px] fill-current text-surface-tint translate-y-0.5 shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
             <span className="font-label-md text-surface-tint font-bold">{totalTipped} SOL</span>
             <span className="font-body-sm text-outline">Total Tips Received</span>
           </div>
@@ -369,6 +402,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "media" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
         >
           Media
+        </button>
+        <button 
+          onClick={() => setActiveTab("nfts")}
+          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "nfts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+        >
+          NFTs
         </button>
         <button 
           onClick={() => setActiveTab("tips")}
@@ -416,23 +455,62 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           )
         )}
 
+        {activeTab === "nfts" && profile && (
+          <NFTGrid 
+            walletAddress={profile.wallet_address} 
+            featuredNfts={profile.featured_nfts || []} 
+          />
+        )}
+
         {activeTab === "tips" && (
-          tippedPosts.length === 0 ? (
+          tippedItems.length === 0 ? (
             <div className="text-center py-xl">
               <span className="material-symbols-outlined text-[40px] text-outline mb-sm block">toll</span>
               <p className="text-on-surface-variant font-body-md">No tips sent yet.</p>
             </div>
           ) : (
             <div className="flex flex-col gap-md">
-              {tippedPosts.map((item, index) => (
-                <div key={`tip-${item.post.id}-${index}`}>
-                  <div className="flex items-center gap-xs px-lg pt-xs pb-0 text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[16px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                    <span className="font-label-sm text-on-surface-variant">
-                      Tipped <span className="text-primary font-bold">{item.amount} SOL</span>
-                    </span>
-                  </div>
-                  <PostCard post={item.post} />
+              {tippedItems.map((item) => (
+                <div key={`tip-${item.id}`}>
+                  {item.type === "post" && item.post ? (
+                    <PostCard 
+                      post={item.post} 
+                      tipActivity={{
+                        tipperUsername: profile.username || profile.display_name,
+                        tipperWallet: profile.wallet_address,
+                        amount: item.amount
+                      }}
+                    />
+                  ) : (
+                    <div className="p-lg border border-outline-variant rounded-xl bg-surface-container-low flex items-center justify-between">
+                      <Link 
+                        href={`/profile/${item.recipient?.username || item.wallet}`}
+                        className="flex items-center gap-sm hover:opacity-80 transition-opacity group"
+                      >
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest shrink-0 border border-outline-variant">
+                          {item.recipient?.avatar_url ? (
+                            <img src={item.recipient.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center font-bold text-primary bg-primary/20">
+                              {item.recipient?.display_name?.slice(0, 2).toUpperCase() || "U"}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-label-md font-bold text-on-surface group-hover:text-primary transition-colors">
+                            Donated to {item.recipient?.display_name || "User"}
+                          </span>
+                          <span className="font-body-sm text-on-surface-variant">
+                            @{item.recipient?.username || "anonymous"}
+                          </span>
+                        </div>
+                      </Link>
+                      <div className="flex items-center gap-xs bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+                        <span className="material-symbols-outlined text-[18px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                        <span className="font-label-md text-primary font-bold">{item.amount} SOL</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -440,12 +518,57 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      <FollowsModal 
-        isOpen={followsModalConfig.isOpen}
-        onClose={() => setFollowsModalConfig(prev => ({ ...prev, isOpen: false }))}
-        type={followsModalConfig.type}
-        targetWallet={profile?.wallet_address || ""}
-      />
-    </div>
+        <FollowsModal 
+          isOpen={followsModalConfig.isOpen}
+          onClose={() => setFollowsModalConfig({ ...followsModalConfig, isOpen: false })}
+          targetWallet={profile?.wallet_address || ""}
+          type={followsModalConfig.type}
+        />
+
+        {profile && (
+          <SendTipModal
+            isOpen={isDonateOpen}
+            onClose={() => setIsDonateOpen(false)}
+            recipientAddress={profile.wallet_address}
+            recipientName={profile.display_name}
+            recipientAvatar={profile.avatar_url}
+            onConfirm={async (amount) => {
+              if (!publicKey) return;
+              try {
+                await sendTip(publicKey, profile.wallet_address, amount, sendTransaction);
+                
+                // Save tip to Supabase
+                const { error: dbError } = await supabase.from("tips").insert([
+                  {
+                    from_wallet: publicKey.toString(),
+                    to_wallet: profile.wallet_address,
+                    amount: amount,
+                  }
+                ]);
+                
+                if (dbError) {
+                  console.error("Tip saved on chain but failed to record in DB:", dbError);
+                }
+
+                // Send notification
+                if (publicKey.toString() !== profile.wallet_address) {
+                  await supabase.from("notifications").insert([{
+                    user_wallet: profile.wallet_address,
+                    actor_wallet: publicKey.toString(),
+                    type: "tip",
+                    amount: amount
+                  }]);
+                }
+
+                toast.success(`Donate of ${amount} SOL sent successfully!`);
+                setIsDonateOpen(false);
+              } catch (error: any) {
+                console.error("Donate failed:", error);
+                toast.error(`Failed to donate: ${error?.message || "Unknown error"}`);
+              }
+            }}
+          />
+        )}
+      </div>
   );
 }

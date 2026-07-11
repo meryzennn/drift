@@ -169,9 +169,9 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
 
       toast.success(`Tip of ${amount} SOL sent successfully!`);
       setIsTipModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Tip failed:", error);
-      toast.error("Failed to send tip. See console for details.");
+      toast.error(`Tip failed: ${error?.message || "Unknown error"}`);
     }
   };
 
