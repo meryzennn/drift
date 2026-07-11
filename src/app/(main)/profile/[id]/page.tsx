@@ -70,6 +70,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         .from("posts")
         .select(POST_SELECT_QUERY)
         .eq("author_wallet", wallet)
+        .is("reply_to_post_id", null)
         .order("created_at", { ascending: false });
 
       let allPosts: Post[] = [];
@@ -385,34 +386,34 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       </div>
       
       {/* Profile Tabs */}
-      <div className="flex border-b border-outline-variant px-4 md:px-6 overflow-x-auto hide-scrollbar sticky top-16 md:top-0 bg-background z-30">
+      <div className="flex w-full border-b border-outline-variant overflow-x-auto hide-scrollbar sticky top-16 md:top-0 bg-background z-30">
         <button 
           onClick={() => setActiveTab("posts")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "posts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "posts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Posts
         </button>
         <button 
           onClick={() => setActiveTab("replies")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "replies" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "replies" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Replies
         </button>
         <button 
           onClick={() => setActiveTab("media")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "media" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "media" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Media
         </button>
         <button 
           onClick={() => setActiveTab("nfts")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "nfts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "nfts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           NFTs
         </button>
         <button 
           onClick={() => setActiveTab("tips")}
-          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "tips" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "tips" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Tips
         </button>
