@@ -65,9 +65,9 @@ export default function CreateComment({ postId, onSuccess }: { postId: string, o
         mediaUrl = gifUrl;
       }
 
-      const { error } = await supabase.from("comments").insert([
+      const { error } = await supabase.from("posts").insert([
         {
-          post_id: postId,
+          reply_to_post_id: postId,
           author_wallet: publicKey.toString(),
           content,
           media_url: mediaUrl,

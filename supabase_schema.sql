@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.posts (
     media_url TEXT,
     likes INTEGER DEFAULT 0,
     quote_post_id UUID REFERENCES public.posts(id) ON DELETE SET NULL,
+    reply_to_post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

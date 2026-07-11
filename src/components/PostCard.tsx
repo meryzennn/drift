@@ -222,8 +222,24 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const confirmDelete = async () => {
     setIsActionLoading(true);
     try {
+      // 1. Try to delete the media from R2 if it exists
+      if (post.imageUrl) {
+        try {
+          await fetch("/api/delete-media", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: post.imageUrl }),
+          });
+        } catch (err) {
+          console.error("Failed to delete media from R2:", err);
+          // We continue deleting the post even if media deletion fails
+        }
+      }
+
+      // 2. Delete the post from Supabase
       const { error } = await supabase.from("posts").delete().eq("id", post.id);
       if (error) throw error;
+      
       toast.success("Post deleted.");
       setIsDeleted(true);
     } catch (err: any) {
@@ -273,6 +289,14 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
               ? "You" 
               : post.repostedBy} reposted
           </span>
+        </div>
+      )}
+      {post.replyToPostId && !isDetail && (
+        <div className="flex items-center gap-xs text-on-surface-variant font-label-sm mb-[-8px]">
+          <span className="material-symbols-outlined text-[16px]">reply</span>
+          <Link href={`/post/${post.replyToPostId}`} className="hover:underline hover:text-primary" onClick={(e) => e.stopPropagation()}>
+            Replying to a post
+          </Link>
         </div>
       )}
       <div className="flex items-start gap-md">

@@ -8,6 +8,7 @@ export const POST_SELECT_QUERY = `
   likes,
   author_wallet,
   quote_post_id,
+  reply_to_post_id,
   users!posts_author_wallet_fkey (
     username,
     display_name,
@@ -49,6 +50,7 @@ export function mapPostData(p: any): Post {
     commentsCount: p.comments?.[0]?.count ?? 0,
     repostsCount: (p.reposts?.[0]?.count ?? 0) + (p.quotes?.[0]?.count ?? 0),
     quotePostId: p.quote_post_id,
+    replyToPostId: p.reply_to_post_id,
     quotePost: quoteData ? {
       id: quoteData.id,
       authorPublicKey: quoteData.author_wallet,

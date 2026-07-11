@@ -1,9 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Post, Comment } from "@/types";
+import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
-import CommentCard from "@/components/CommentCard";
 import { useState, useEffect, use } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
@@ -20,7 +19,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [replies, setReplies] = useState<Post[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media">("posts");
@@ -100,31 +99,16 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setPosts(allPosts);
 
-      // Fetch user comments
-      const { data: commentsData } = await supabase
-        .from("comments")
-        .select(`
-          id, content, media_url, created_at, post_id, author_wallet,
-          users!comments_author_wallet_fkey ( username, display_name, avatar_url )
-        `)
+      // Fetch user replies
+      const { data: repliesData } = await supabase
+        .from("posts")
+        .select(POST_SELECT_QUERY)
         .eq("author_wallet", wallet)
+        .not("reply_to_post_id", "is", null)
         .order("created_at", { ascending: false });
 
-      if (commentsData) {
-        const formattedComments: Comment[] = commentsData.map((c: any) => ({
-          id: c.id,
-          postId: c.post_id,
-          authorPublicKey: c.author_wallet,
-          content: c.content,
-          imageUrl: c.media_url,
-          createdAt: c.created_at,
-          authorProfile: c.users ? {
-            username: c.users.username,
-            displayName: c.users.display_name,
-            avatarUrl: c.users.avatar_url,
-          } : undefined,
-        }));
-        setComments(formattedComments);
+      if (repliesData) {
+        setReplies(repliesData.map(mapPostData));
       }
 
       // Fetch total tipped received
@@ -378,12 +362,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         )}
         
         {activeTab === "replies" && (
-          comments.length === 0 ? (
+          replies.length === 0 ? (
             <div className="text-center py-xl text-on-surface-variant font-body-md">User hasn't replied to anything yet.</div>
           ) : (
             <div className="flex flex-col gap-md">
-              {comments.map((comment, index) => (
-                <CommentCard key={`comment-${comment.id}-${index}`} comment={comment} />
+              {replies.map((reply, index) => (
+                <PostCard key={`reply-${reply.id}-${index}`} post={reply} />
               ))}
             </div>
           )
