@@ -20,9 +20,10 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
+  const [tippedPosts, setTippedPosts] = useState<{ post: Post; amount: number; createdAt: string }[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips">("posts");
   const [notFound, setNotFound] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -120,6 +121,30 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       if (tipsData) {
         const total = tipsData.reduce((acc, tip) => acc + tip.amount, 0);
         setTotalTipped(total);
+      }
+
+      // Fetch posts tipped BY this user (as sender)
+      const { data: tipNotifs } = await supabase
+        .from("notifications")
+        .select(`
+          amount,
+          created_at,
+          post_id,
+          post:posts!notifications_post_id_fkey(${POST_SELECT_QUERY})
+        `)
+        .eq("actor_wallet", wallet)
+        .eq("type", "tip")
+        .order("created_at", { ascending: false });
+
+      if (tipNotifs) {
+        const mapped = tipNotifs
+          .filter((t: any) => t.post)
+          .map((t: any) => ({
+            post: mapPostData(Array.isArray(t.post) ? t.post[0] : t.post),
+            amount: t.amount || 0,
+            createdAt: t.created_at,
+          }));
+        setTippedPosts(mapped);
       }
       
       // Fetch follow stats
@@ -345,6 +370,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         >
           Media
         </button>
+        <button 
+          onClick={() => setActiveTab("tips")}
+          className={`px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors ${activeTab === "tips" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface"}`}
+        >
+          Tips
+        </button>
       </div>
 
       {/* Feed Content */}
@@ -380,6 +411,29 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             <div className="flex flex-col gap-md">
               {posts.filter(p => p.imageUrl).map((post, index) => (
                 <PostCard key={`media-${post.id}-${index}`} post={post} />
+              ))}
+            </div>
+          )
+        )}
+
+        {activeTab === "tips" && (
+          tippedPosts.length === 0 ? (
+            <div className="text-center py-xl">
+              <span className="material-symbols-outlined text-[40px] text-outline mb-sm block">toll</span>
+              <p className="text-on-surface-variant font-body-md">No tips sent yet.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-md">
+              {tippedPosts.map((item, index) => (
+                <div key={`tip-${item.post.id}-${index}`}>
+                  <div className="flex items-center gap-xs px-lg pt-xs pb-0 text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[16px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                    <span className="font-label-sm text-on-surface-variant">
+                      Tipped <span className="text-primary font-bold">{item.amount} SOL</span>
+                    </span>
+                  </div>
+                  <PostCard post={item.post} />
+                </div>
               ))}
             </div>
           )

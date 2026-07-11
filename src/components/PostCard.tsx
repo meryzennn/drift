@@ -15,6 +15,7 @@ import QuoteModal from "./QuoteModal";
 import { useEffect } from "react";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import VideoPlayer from "./VideoPlayer";
+import TipLeaderboardModal from "./TipLeaderboardModal";
 
 interface PostCardProps {
   post: Post;
@@ -45,7 +46,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
   const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount || 0);
   const [localQuotePost, setLocalQuotePost] = useState<Post | undefined>(post.quotePost);
   const [tipSummary, setTipSummary] = useState<{ total: number; tippers: { username: string; avatar_url?: string; amount: number }[] } | null>(null);
-  const [showTipSummary, setShowTipSummary] = useState(false);
+  const [isTipLeaderboardOpen, setIsTipLeaderboardOpen] = useState(false);
   const [isFetchingTips, setIsFetchingTips] = useState(false);
 
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
@@ -54,7 +55,6 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
     if (tipSummary || isFetchingTips) return;
     setIsFetchingTips(true);
     try {
-      // Fetch tips made to this post's author around this post's creation time
       const { data } = await supabase
         .from("notifications")
         .select("actor_wallet, amount, actor:users!notifications_actor_wallet_fkey(username, avatar_url)")
@@ -114,6 +114,12 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
       fetchQuote();
     }
   }, [post.quotePostId, localQuotePost]);
+
+  // Eagerly fetch tip summary on mount so badge is populated immediately
+  useEffect(() => {
+    fetchTipSummary();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
 
   const handleTipClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -565,42 +571,27 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
               <span className="font-body-sm">{localLikesCount}</span>
             </button>
             
-            <div className="relative ml-auto" onMouseEnter={() => { setShowTipSummary(true); fetchTipSummary(); }} onMouseLeave={() => setShowTipSummary(false)}>
-              <button 
+            <div className="relative ml-auto flex items-center gap-xs">
+              {/* Coin/Leaderboard button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); fetchTipSummary(); setIsTipLeaderboardOpen(true); }}
+                title="View tip leaderboard"
+                className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary/10 hover:border-primary/40 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                {tipSummary && tipSummary.total > 0 && (
+                  <span className="font-label-sm text-primary">{tipSummary.total.toFixed(3)} SOL</span>
+                )}
+              </button>
+
+              {/* Send Tip button */}
+              <button
                 onClick={handleTipClick}
                 className="flex items-center gap-xs text-primary-container border border-outline-variant rounded-full px-sm py-xs hover:bg-primary-container/10 transition-colors"
               >
-                <span className="material-symbols-outlined text-[16px]">toll</span>
-                <span className="font-label-sm">
-                  {tipSummary && tipSummary.total > 0 ? `${tipSummary.total} SOL` : "Send Tip"}
-                </span>
+                <span className="material-symbols-outlined text-[16px]">send</span>
+                <span className="font-label-sm">Tip</span>
               </button>
-
-              {/* Tip Summary Tooltip */}
-              {showTipSummary && tipSummary && tipSummary.tippers.length > 0 && (
-                <div className="absolute bottom-full right-0 mb-2 w-56 bg-surface-container-high border border-outline-variant rounded-xl shadow-2xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-md py-sm border-b border-outline-variant/50">
-                    <p className="font-label-sm text-on-surface-variant">Tips received</p>
-                    <p className="font-headline-sm font-bold text-primary">{tipSummary.total.toFixed(3)} SOL</p>
-                  </div>
-                  <div className="flex flex-col max-h-40 overflow-y-auto">
-                    {tipSummary.tippers.map((t, i) => (
-                      <div key={i} className="flex items-center gap-sm px-md py-xs hover:bg-surface-container-highest transition-colors">
-                        <div className="w-6 h-6 rounded-full bg-primary/20 overflow-hidden shrink-0">
-                          {t.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="material-symbols-outlined text-[14px] text-primary flex items-center justify-center h-full">person</span>
-                          )}
-                        </div>
-                        <span className="font-body-sm text-on-surface flex-1 truncate">@{t.username}</span>
-                        <span className="font-label-sm text-primary shrink-0">{t.amount} SOL</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -619,6 +610,13 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
         isOpen={isQuoteModalOpen}
         onClose={() => setIsQuoteModalOpen(false)}
         quotedPost={post}
+      />
+
+      <TipLeaderboardModal
+        isOpen={isTipLeaderboardOpen}
+        onClose={() => setIsTipLeaderboardOpen(false)}
+        postId={post.id}
+        postAuthorWallet={post.authorPublicKey}
       />
 
       {isConfirmDeleteOpen && typeof document !== "undefined" && createPortal(
