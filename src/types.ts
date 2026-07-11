@@ -43,7 +43,7 @@ export interface AppNotification {
   id: string;
   user_wallet: string;
   actor_wallet: string;
-  type: "like" | "repost" | "reply" | "tip" | "follow";
+  type: "like" | "repost" | "reply" | "tip" | "follow" | "mention" | "message";
   post_id?: string;
   amount?: number;
   is_read: boolean;

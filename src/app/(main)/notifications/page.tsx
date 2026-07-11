@@ -37,6 +37,8 @@ function NotificationIcon({ type }: { type: string }) {
     reply: { icon: "reply", color: "text-primary" },
     tip: { icon: "monetization_on", color: "text-tertiary" },
     follow: { icon: "person_add", color: "text-primary" },
+    message: { icon: "mail", color: "text-primary" },
+    mention: { icon: "alternate_email", color: "text-secondary" },
   };
   const cfg = configs[type] ?? { icon: "notifications", color: "text-on-surface-variant" };
   return (
@@ -78,6 +80,12 @@ function NotificationMessage({ n }: { n: AppNotification }) {
           <ActorName /> replied to your post
         </p>
       );
+    case "mention":
+      return (
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> mentioned you in a post
+        </p>
+      );
     case "tip":
       if (n.post_id) {
         return (
@@ -105,8 +113,18 @@ function NotificationMessage({ n }: { n: AppNotification }) {
           <ActorName /> started following you
         </p>
       );
+    case "message":
+      return (
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> sent you a message
+        </p>
+      );
     default:
-      return null;
+      return (
+        <p className="font-body-md text-on-surface-variant">
+          <ActorName /> interacted with your content
+        </p>
+      );
   }
 }
 
@@ -186,11 +204,12 @@ export default function NotificationsPage() {
   }, [notifications.length, publicKey]);
 
   const filtered = activeTab === "all"
-    ? notifications
+    ? notifications.filter(n => n.type !== "message") // DM notifs handled in inbox
     : notifications.filter((n) => {
+        if (n.type === "message") return false; // always hide DM notifs
         if (activeTab === "likes") return n.type === "like";
         if (activeTab === "reposts") return n.type === "repost";
-        if (activeTab === "replies") return n.type === "reply";
+        if (activeTab === "replies") return n.type === "reply" || n.type === "mention";
         if (activeTab === "tips") return n.type === "tip";
         return true;
       });
@@ -277,18 +296,24 @@ export default function NotificationsPage() {
                   </div>
                 </div>
 
-                {/* Post snippet */}
-                {n.post?.content && (
+                {/* Post snippet - show for all notifs with post_id except follow/message */}
+                {n.post_id && n.type !== "follow" && n.type !== "message" && (
                   <Link
-                    href={n.type === "reply" && n.post.reply_to_post_id ? `/post/${n.post.reply_to_post_id}?highlight=${n.post_id}` : (n.post_id ? `/post/${n.post_id}` : "#")}
+                    href={n.type === "reply" && n.post?.reply_to_post_id
+                      ? `/post/${n.post.reply_to_post_id}?highlight=${n.post_id}`
+                      : `/post/${n.post_id}`}
                     onClick={(e) => e.stopPropagation()}
                     className="block mt-xs"
                   >
                     <p className="font-body-sm text-on-surface-variant line-clamp-2 bg-surface-container rounded-lg px-sm py-xs border border-outline-variant/50 hover:border-primary/30 transition-colors">
-                      &ldquo;{n.post.content}&rdquo;
+                      {n.post?.content
+                        ? <>&ldquo;{n.post.content}&rdquo;</>
+                        : <span className="flex items-center gap-1 text-primary"><span className="material-symbols-outlined text-[14px]">open_in_new</span> View post</span>
+                      }
                     </p>
                   </Link>
                 )}
+
 
                 {/* Timestamp */}
                 <p className="font-label-sm text-outline mt-xs">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, use } from "react";
+import { createPortal } from "react-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
@@ -51,6 +52,8 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [isMutual, setIsMutual] = useState(true);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [, setTick] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   
   // Reply & Select State
   const [replyingTo, setReplyingTo] = useState<any>(null);
@@ -535,6 +538,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
+    <>
     <div 
       className="fixed top-[64px] bottom-[calc(64px+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex flex-col bg-surface-container-lowest md:relative md:top-auto md:bottom-auto md:left-auto md:right-auto md:z-auto md:flex-none md:h-[calc(100vh-152px)] lg:h-[calc(100vh-112px)] w-full border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" 
       style={{ minWidth: 'min(100%, 500px)' }}
@@ -807,33 +811,6 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
-      {deletePrompt && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-surface-container rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 border border-outline-variant shadow-2xl animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-error">delete_forever</span>
-              Hapus Pesan?
-            </h3>
-            <p className="text-on-surface-variant text-sm">
-              Pesan ini akan dihapus untuk semua orang dan tidak bisa dikembalikan. Yakin?
-            </p>
-            <div className="flex items-center justify-end gap-3 mt-4">
-              <button 
-                onClick={() => setDeletePrompt(null)} 
-                className="px-5 py-2 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-colors"
-              >
-                No
-              </button>
-              <button 
-                onClick={confirmDelete} 
-                className="px-5 py-2 font-bold text-error bg-error/10 hover:bg-error/20 rounded-full transition-colors"
-              >
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isMediaOpen && (
         <MediaPickerModal
@@ -873,5 +850,34 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         />
       )}
     </div>
+    {mounted && deletePrompt && createPortal(
+      <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center" style={{ padding: '24px' }}>
+        <div style={{ background: 'var(--color-surface-container, #1b1b1e)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'inherit', margin: 0 }}>
+            <span className="material-symbols-outlined" style={{ color: '#ef4444' }}>delete_forever</span>
+            Hapus Pesan?
+          </h3>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
+            Pesan ini akan dihapus untuk semua orang dan tidak bisa dikembalikan. Yakin?
+          </p>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+            <button 
+              onClick={() => setDeletePrompt(null)}
+              style={{ flex: 1, padding: '12px', fontWeight: 'bold', borderRadius: '9999px', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '14px' }}
+            >
+              No
+            </button>
+            <button 
+              onClick={confirmDelete}
+              style={{ flex: 1, padding: '12px', fontWeight: 'bold', borderRadius: '9999px', background: 'rgba(239,68,68,0.15)', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px' }}
+            >
+              Yes, Delete
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 }
