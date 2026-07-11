@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 
 export function useMentionAutocomplete(
@@ -9,8 +9,11 @@ export function useMentionAutocomplete(
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [matchStart, setMatchStart] = useState(-1);
+  const isSelectingRef = useRef(false);
 
   useEffect(() => {
+    if (isSelectingRef.current) return;
+    
     if (cursorPosition === null) {
       setShowDropdown(false);
       return;
@@ -65,12 +68,15 @@ export function useMentionAutocomplete(
   const handleSelect = (username: string, textareaRef: React.RefObject<HTMLTextAreaElement | null>) => {
     if (matchStart === -1) return;
     
+    isSelectingRef.current = true;
+    
     const beforeMention = content.slice(0, matchStart);
     const afterMention = content.slice(cursorPosition || content.length);
     
     const newContent = `${beforeMention}@${username} ${afterMention}`;
     setContent(newContent);
     setShowDropdown(false);
+    setSuggestions([]);
     
     // Attempt to set cursor position after the newly inserted username + space
     if (textareaRef.current) {
@@ -80,7 +86,10 @@ export function useMentionAutocomplete(
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
         }
-      }, 0);
+        isSelectingRef.current = false;
+      }, 50);
+    } else {
+      isSelectingRef.current = false;
     }
   };
 
