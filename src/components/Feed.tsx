@@ -2,18 +2,18 @@
 
 import { Post } from "@/types";
 import PostCard from "./PostCard";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import PostSkeleton from "./skeletons/PostSkeleton";
 import { useRouter } from "next/navigation";
+import { Virtuoso } from "react-virtuoso";
 
 interface FeedItem {
   type: "post" | "tip_activity";
   post: Post;
   sortKey: string;
-  // tip activity metadata
   tipper?: { username?: string; avatar_url?: string; wallet: string };
   tipAmount?: number;
 }
@@ -25,17 +25,16 @@ interface FeedProps {
 export default function Feed({ posts }: FeedProps) {
   const { publicKey } = useWallet();
   const router = useRouter();
-  
+
   const [internalPosts, setInternalPosts] = useState<Post[]>(posts);
   const [hasMore, setHasMore] = useState(posts.length >= 10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [newPostsCount, setNewPostsCount] = useState(0);
-  
+
   const [feedItems, setFeedItems] = useState<FeedItem[]>(
     internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt }))
   );
   const [loadingTipActivity, setLoadingTipActivity] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Sync prop changes (e.g., from router.refresh)
   useEffect(() => {
@@ -57,7 +56,6 @@ export default function Feed({ posts }: FeedProps) {
     setLoadingTipActivity(true);
 
     try {
-      // 1. Get list of people current user follows
       const { data: followData } = await supabase
         .from("follows")
         .select("following_wallet")
@@ -69,7 +67,6 @@ export default function Feed({ posts }: FeedProps) {
         return;
       }
 
-      // 2. Fetch tip notifications from followed users (recent 50)
       const { data: tipNotifs } = await supabase
         .from("notifications")
         .select(`
@@ -89,7 +86,6 @@ export default function Feed({ posts }: FeedProps) {
         return;
       }
 
-      // 3. Fetch those posts
       const postIds = [...new Set(tipNotifs.map((t: any) => t.post_id).filter(Boolean))];
       const { data: tippedPostsData } = await supabase
         .from("posts")
@@ -101,7 +97,6 @@ export default function Feed({ posts }: FeedProps) {
         tippedPostsMap.set(p.id, mapPostData(p));
       });
 
-      // 4. Build tip activity feed items (deduplicate: one entry per post)
       const seenPostIds = new Set<string>();
       const tipItems: FeedItem[] = [];
 
@@ -124,7 +119,6 @@ export default function Feed({ posts }: FeedProps) {
         });
       }
 
-      // 5. Merge: posts + tip activities sorted by time
       const merged: FeedItem[] = [
         ...internalPosts.map(p => ({ type: "post" as const, post: p, sortKey: p.createdAt })),
         ...tipItems,
@@ -140,15 +134,13 @@ export default function Feed({ posts }: FeedProps) {
     }
   };
 
-  // --- Infinite Scroll & Polling Logic ---
-  
-  const loadMorePosts = async () => {
+  const loadMorePosts = useCallback(async () => {
     if (isLoadingMore || !hasMore || internalPosts.length === 0) return;
     setIsLoadingMore(true);
 
     try {
       const oldestDate = internalPosts[internalPosts.length - 1].createdAt;
-      
+
       const { data } = await supabase
         .from("posts")
         .select(POST_SELECT_QUERY)
@@ -156,7 +148,7 @@ export default function Feed({ posts }: FeedProps) {
         .lt("created_at", oldestDate)
         .order("created_at", { ascending: false })
         .limit(10);
-        
+
       if (data && data.length > 0) {
         const olderPosts = data.map(mapPostData);
         setInternalPosts(prev => {
@@ -175,32 +167,21 @@ export default function Feed({ posts }: FeedProps) {
     } finally {
       setIsLoadingMore(false);
     }
-  };
-
-  useEffect(() => {
-    if (!loadMoreRef.current) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        loadMorePosts();
-      }
-    }, { rootMargin: "200px" });
-    
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
   }, [isLoadingMore, hasMore, internalPosts]);
 
+  // Poll for new posts
   useEffect(() => {
     if (internalPosts.length === 0) return;
     const newestDate = internalPosts[0].createdAt;
-    
+
     const pollTimer = setInterval(async () => {
       try {
         const { count } = await supabase
           .from("posts")
-          .select("*", { count: 'exact', head: true })
+          .select("*", { count: "exact", head: true })
           .is("reply_to_post_id", null)
           .gt("created_at", newestDate);
-          
+
         if (count && count > 0) {
           setNewPostsCount(count);
         }
@@ -208,7 +189,7 @@ export default function Feed({ posts }: FeedProps) {
         // ignore
       }
     }, 30000);
-    
+
     return () => clearInterval(pollTimer);
   }, [internalPosts]);
 
@@ -220,59 +201,43 @@ export default function Feed({ posts }: FeedProps) {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-md relative">
-      {/* New Posts Indicator */}
-      {newPostsCount > 0 && (
-        <div className="sticky top-[72px] z-30 flex justify-center mb-md pointer-events-none">
-          <button 
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              router.refresh();
+  const itemContent = (index: number) => {
+    const item = feedItems[index];
+    if (!item) return null;
+
+    return (
+      <div className="pb-md">
+        {item.type === "tip_activity" ? (
+          <PostCard
+            key={`tip-${item.post.id}-${index}`}
+            post={item.post}
+            tipActivity={{
+              tipperUsername: item.tipper?.username,
+              tipperWallet: item.tipper?.wallet || "",
+              tipperAvatar: item.tipper?.avatar_url,
+              amount: item.tipAmount || 0,
             }}
-            className="pointer-events-auto bg-primary text-on-primary font-bold font-label-md px-6 py-2.5 rounded-full shadow-xl shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
-            {newPostsCount} New {newPostsCount === 1 ? 'Post' : 'Posts'}
-          </button>
-        </div>
-      )}
+          />
+        ) : (
+          <PostCard
+            key={`post-${item.post.id}-${item.post.isRepost ? "repost" : "post"}-${index}`}
+            post={item.post}
+          />
+        )}
+      </div>
+    );
+  };
 
-      {feedItems.map((item, index) => {
-        if (item.type === "tip_activity") {
-          return (
-            <PostCard
-              key={`tip-${item.post.id}-${index}`}
-              post={item.post}
-              tipActivity={{
-                tipperUsername: item.tipper?.username,
-                tipperWallet: item.tipper?.wallet || "",
-                tipperAvatar: item.tipper?.avatar_url,
-                amount: item.tipAmount || 0,
-              }}
-            />
-          );
-        }
-        return (
-          <PostCard key={`post-${item.post.id}-${item.post.isRepost ? "repost" : "post"}-${index}`} post={item.post} />
-        );
-      })}
-
-      {/* Infinite Scroll Target */}
-      {hasMore && (
-        <div ref={loadMoreRef} className="w-full">
-          {isLoadingMore && <PostSkeleton />}
-        </div>
-      )}
-
-      {/* End of Feed Message */}
-      {!hasMore && feedItems.length > 0 && (
+  const Footer = () => {
+    if (isLoadingMore) return <PostSkeleton />;
+    if (!hasMore && feedItems.length > 0) {
+      return (
         <div className="text-center py-xl border-t border-outline-variant mt-md">
-          <p className="font-label-md font-bold text-on-surface">You're all caught up!</p>
+          <p className="font-label-md font-bold text-on-surface">You&apos;re all caught up!</p>
           <p className="font-body-sm text-on-surface-variant mt-1">No more posts to show.</p>
-          <button 
+          <button
             onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              window.scrollTo({ top: 0, behavior: "smooth" });
               router.refresh();
             }}
             className="mt-4 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-full font-label-sm transition-colors flex items-center gap-2 mx-auto"
@@ -281,7 +246,37 @@ export default function Feed({ posts }: FeedProps) {
             Refresh Feed
           </button>
         </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="relative">
+      {/* New Posts Indicator – outside the list so it stays sticky */}
+      {newPostsCount > 0 && (
+        <div className="sticky top-[72px] z-30 flex justify-center mb-md pointer-events-none">
+          <button
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              router.refresh();
+            }}
+            className="pointer-events-auto bg-primary text-on-primary font-bold font-label-md px-6 py-2.5 rounded-full shadow-xl shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+            {newPostsCount} New {newPostsCount === 1 ? "Post" : "Posts"}
+          </button>
+        </div>
       )}
+
+      <Virtuoso
+        useWindowScroll
+        data={feedItems}
+        endReached={loadMorePosts}
+        overscan={400}
+        itemContent={itemContent}
+        components={{ Footer }}
+      />
     </div>
   );
 }
