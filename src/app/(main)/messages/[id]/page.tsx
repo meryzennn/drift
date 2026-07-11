@@ -314,6 +314,38 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (!file) continue;
+        
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error("Image too large (max 10MB)");
+          return;
+        }
+
+        toast.loading("Uploading pasted image...");
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("type", "post");
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          if (!res.ok) throw new Error("Upload failed");
+          const data = await res.json();
+          toast.dismiss();
+          handleSend("", data.url);
+        } catch (err) {
+          toast.dismiss();
+          toast.error("Failed to upload pasted image");
+        }
+        return;
+      }
+    }
+  };
+
   const handleSend = async (text: string, mediaUrl?: string, tipAmount?: number) => {
     if ((!text && !mediaUrl && !tipAmount) || !publicKey || !mySecret || !otherPubkey) return;
 
@@ -409,7 +441,10 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-152px)] md:h-[calc(100vh-112px)] w-full bg-surface-container-lowest border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" style={{ minWidth: 'min(100%, 500px)' }}>
+    <div 
+      className="fixed top-[64px] bottom-[calc(64px+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex flex-col bg-surface-container-lowest md:relative md:top-auto md:bottom-auto md:left-auto md:right-auto md:z-auto md:flex-none md:h-[calc(100vh-152px)] lg:h-[calc(100vh-112px)] w-full border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" 
+      style={{ minWidth: 'min(100%, 500px)' }}
+    >
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
         <button onClick={() => router.push("/messages")} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
@@ -556,6 +591,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
               type="text"
               value={inputText}
               onChange={(e) => handleInputChange(e as any)}
+              onPaste={handlePaste}
               placeholder="Message..."
               className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant focus:outline-none min-w-0"
             />
