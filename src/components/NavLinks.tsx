@@ -13,6 +13,7 @@ export default function NavLinks() {
     { href: "/", label: "Home", icon: "home" },
     { href: "/explore", label: "Explore", icon: "explore" },
     { href: "/leaderboard", label: "Leaderboard", icon: "leaderboard" },
+    { href: "/messages", label: "Messages", icon: "mail" },
     { href: "/notifications", label: "Notifications", icon: "notifications" },
     { href: "/profile", label: "Profile", icon: "person" },
   ];

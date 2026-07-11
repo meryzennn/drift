@@ -34,6 +34,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isMutualFollow, setIsMutualFollow] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followsModalConfig, setFollowsModalConfig] = useState<{isOpen: boolean, type: "followers" | "following"}>({isOpen: false, type: "followers"});
   const [isDonateOpen, setIsDonateOpen] = useState(false);
@@ -253,6 +254,14 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           .eq("following_wallet", wallet)
           .maybeSingle();
         setIsFollowing(!!followData);
+        
+        const { data: followBackData } = await supabase
+          .from("follows")
+          .select("created_at")
+          .eq("follower_wallet", wallet)
+          .eq("following_wallet", publicKey.toString())
+          .maybeSingle();
+        setIsMutualFollow(!!followData && !!followBackData);
       }
       
     } catch (error) {
@@ -260,6 +269,37 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       setNotFound(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMessageClick = async () => {
+    if (!publicKey || !profile) return;
+    try {
+      const { data: existingConvos, error: fetchError } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(user1_wallet.eq.${publicKey.toString()},user2_wallet.eq.${profile.wallet_address}),and(user1_wallet.eq.${profile.wallet_address},user2_wallet.eq.${publicKey.toString()})`);
+        
+      if (fetchError) throw fetchError;
+      
+      if (existingConvos && existingConvos.length > 0) {
+        router.push(`/messages/${existingConvos[0].id}`);
+      } else {
+        const { data: newConvo, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            user1_wallet: publicKey.toString(),
+            user2_wallet: profile.wallet_address
+          })
+          .select('id')
+          .single();
+          
+        if (createError) throw createError;
+        if (newConvo) router.push(`/messages/${newConvo.id}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to open messages");
     }
   };
 
@@ -373,6 +413,15 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
               </button>
             ) : (
               <>
+                {isMutualFollow && (
+                  <button 
+                    onClick={handleMessageClick}
+                    className="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-high rounded-lg font-label-md transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">mail</span>
+                    Message
+                  </button>
+                )}
                 <button 
                   onClick={() => setIsDonateOpen(true)}
                   className="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-high rounded-lg font-label-md transition-colors flex items-center gap-2"

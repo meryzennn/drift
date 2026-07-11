@@ -11,7 +11,8 @@ interface SendTipModalProps {
   recipientAddress: string;
   recipientName?: string;
   recipientAvatar?: string;
-  onConfirm: (amount: number) => void;
+  onConfirm: (amount: number, message?: string) => void;
+  allowMessage?: boolean;
 }
 
 const PRESET_AMOUNTS_SOL = [0.05, 0.1, 0.5];
@@ -23,10 +24,12 @@ export default function SendTipModal({
   recipientName = "Anonymous User",
   recipientAvatar,
   onConfirm,
+  allowMessage = false,
 }: SendTipModalProps) {
   const [selectedPreset, setSelectedPreset] = useState<number | null>(0.1);
   const [solAmount, setSolAmount] = useState<string>("0.1");
   const [usdAmount, setUsdAmount] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
   const [inputMode, setInputMode] = useState<"sol" | "usd">("sol");
   const [solPrice, setSolPrice] = useState<number | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -85,6 +88,7 @@ export default function SendTipModal({
       setSolAmount("0.1");
       setUsdAmount(solPrice ? (0.1 * solPrice).toFixed(2) : "");
       setInputMode("sol");
+      setMessage("");
     }
   }, [isOpen]);
 
@@ -124,7 +128,7 @@ export default function SendTipModal({
   const handleConfirm = () => {
     const amountNum = parseFloat(solAmount);
     if (!isNaN(amountNum) && amountNum > 0) {
-      onConfirm(amountNum);
+      onConfirm(amountNum, allowMessage ? message : undefined);
     }
   };
 
@@ -295,6 +299,20 @@ export default function SendTipModal({
             </div>
           </div>
         </div>
+
+        {/* Optional Message Input */}
+        {allowMessage && (
+          <div className="px-lg pb-md">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Add a message... (optional)"
+              maxLength={100}
+              className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 font-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+            />
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="p-lg pt-md flex items-center justify-between gap-md border-t border-outline-variant/50 bg-surface-container-lowest">

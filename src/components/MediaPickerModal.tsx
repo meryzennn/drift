@@ -139,7 +139,12 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
     if (file) validateAndHandle(file);
   };
 
-  const title = type === "avatar" ? "Change Profile Photo" : type === "banner" ? "Change Banner" : "Select GIF";
+  let title = "Select Media";
+  if (type === "avatar") title = "Change Profile Photo";
+  else if (type === "banner") title = "Change Banner";
+  else if (tab === "gif") title = "Select GIF";
+  else if (tab === "upload") title = "Upload Media";
+  else if (tab === "nft") title = "Select NFT";
   const resolution = type === "avatar" ? "800 × 800px · 1:1 ratio" : type === "banner" ? "1500 × 500px · 3:1 ratio" : "All ratios supported";
 
   const modal = (
