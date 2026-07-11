@@ -52,11 +52,20 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [, setTick] = useState(0);
   
+  // Reply & Select State
+  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+  const [swipeState, setSwipeState] = useState<{ id: string, startX: number, currentX: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
+  const swipeThreshold = 60;
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load session key
+  // Check Authsession key
   useEffect(() => {
     if (publicKey) {
       const secret = sessionStorage.getItem(`drift_chat_secret_${publicKey.toString()}`);
@@ -67,6 +76,12 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       }
     }
   }, [publicKey, router]);
+
+  useEffect(() => {
+    const closeContextMenu = () => setContextMenu(null);
+    document.addEventListener("click", closeContextMenu);
+    return () => document.removeEventListener("click", closeContextMenu);
+  }, []);
 
   // Timer to force re-render for relative timestamps (like "Online" -> "Last seen")
   useEffect(() => {
@@ -243,6 +258,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       }, (payload) => {
         setMessages(prev => prev.map(msg => msg.id === payload.new.id ? { ...msg, is_read: payload.new.is_read } : msg));
       })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${convoId}`
+      }, (payload) => {
+        setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+      })
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.user !== publicKey.toString()) {
           setIsOtherTyping(payload.payload.isTyping);
@@ -343,6 +366,54 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedMessageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedMessageIds.size === 0) return;
+    try {
+      const idsToDelete = Array.from(selectedMessageIds);
+      await supabase.from("messages").delete().in("id", idsToDelete);
+      setIsSelectionMode(false);
+      setSelectedMessageIds(new Set());
+    } catch (e) {
+      toast.error("Failed to delete messages");
+    }
+  };
+
+  const handleTouchStart = (msg: any, e: React.TouchEvent) => {
+    if (isSelectionMode) return;
+    longPressTimerRef.current = setTimeout(() => {
+       setIsSelectionMode(true);
+       toggleSelection(msg.id);
+    }, 500);
+    setSwipeState({ id: msg.id, startX: e.touches[0].clientX, currentX: e.touches[0].clientX });
+  };
+
+  const handleTouchMove = (msg: any, e: React.TouchEvent) => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    if (swipeState?.id === msg.id) {
+      setSwipeState(prev => prev ? { ...prev, currentX: e.touches[0].clientX } : null);
+    }
+  };
+
+  const handleTouchEnd = (msg: any) => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    if (swipeState?.id === msg.id) {
+      const diff = swipeState!.currentX - swipeState!.startX;
+      if (diff > swipeThreshold && !isSelectionMode) {
+        setReplyingTo(msg);
+      }
+      setSwipeState(null);
+    }
+  };
+
   const handleSend = async (text: string, mediaUrl?: string, tipAmount?: number) => {
     if ((!text && !mediaUrl && !tipAmount) || !publicKey || !mySecret || !otherPubkey) return;
 
@@ -352,6 +423,8 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     const encMedia = mediaUrl ? encryptMessage(mediaUrl, mySecret, otherPubkey) : null;
     
     setInputText("");
+    const currentReplyId = replyingTo?.id;
+    setReplyingTo(null);
 
     try {
       await supabase.from("messages").insert({
@@ -360,7 +433,8 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         content: encText,
         media_url: encMedia,
         is_tip: !!tipAmount,
-        tip_amount: tipAmount || null
+        tip_amount: tipAmount || null,
+        reply_to_id: currentReplyId || null
       });
       
       // Update convo last message
@@ -506,7 +580,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
               }
 
               return (
-                <div key={msg.id} className="w-full flex flex-col gap-3">
+                <div key={msg.id} id={`msg-${msg.id}`} className="w-full flex flex-col gap-3 group relative">
                   {isNewDay && (
                     <div className="flex justify-center mt-2 mb-1 w-full">
                       <div className="bg-surface-container-high px-3 py-1 rounded-full text-[11px] font-label-md text-on-surface-variant font-bold">
@@ -514,38 +588,88 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                       </div>
                     </div>
                   )}
-                  <div className={`flex flex-col max-w-[75%] ${isMine ? "self-end items-end" : "self-start items-start"}`}>
+                  <div className={`w-full flex items-center ${isMine ? "justify-end" : "justify-start"}`}>
                     
-                    {msg.is_tip && (
-                      <div className={`mb-1 px-4 py-2 rounded-2xl flex items-center gap-2 border ${isMine ? "bg-primary/20 border-primary/30 text-primary" : "bg-surface-container-high border-outline-variant text-on-surface"}`}>
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                        <span className="font-bold">Sent {msg.tip_amount} SOL</span>
+                    {isSelectionMode && (
+                      <div className="mr-3 shrink-0 cursor-pointer" onClick={() => toggleSelection(msg.id)}>
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${selectedMessageIds.has(msg.id) ? "bg-primary border-primary text-on-primary" : "border-outline-variant"}`}>
+                          {selectedMessageIds.has(msg.id) && <span className="material-symbols-outlined text-[14px]">check</span>}
+                        </div>
                       </div>
                     )}
-                    
-                    {msg.decryptedMedia && (
-                      <div className="mb-1 rounded-2xl overflow-hidden border border-outline-variant max-w-[250px] max-h-[250px]">
-                        {msg.decryptedMedia.endsWith('.mp4') ? (
-                          <video src={msg.decryptedMedia} autoPlay loop muted className="w-full h-full object-cover" />
-                        ) : (
-                          <img src={msg.decryptedMedia} alt="" className="w-full h-full object-cover" />
+
+                    <div 
+                      className={`flex flex-col max-w-[75%] relative ${isMine ? "items-end" : "items-start"}`}
+                      onTouchStart={(e) => handleTouchStart(msg, e)}
+                      onTouchMove={(e) => handleTouchMove(msg, e)}
+                      onTouchEnd={() => handleTouchEnd(msg)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({ x: e.clientX, y: e.clientY, msg });
+                      }}
+                      style={{ 
+                        transform: swipeState?.id === msg.id ? `translateX(${Math.max(0, swipeState!.currentX - swipeState!.startX)}px)` : 'none', 
+                        transition: swipeState?.id === msg.id ? 'none' : 'transform 0.2s' 
+                      }}
+                    >
+                      {/* Unified Message Bubble */}
+                      {(!msg.is_tip || (msg.is_tip && msg.decryptedText !== "Sent a tip") || msg.reply_to_id || msg.decryptedMedia) && (
+                        <div className={`flex flex-col p-1.5 rounded-2xl text-[15px] ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
+                          
+                          {/* Reply Snippet */}
+                          {msg.reply_to_id && (
+                            <div 
+                              className={`mb-1.5 p-2 rounded-xl text-sm border-l-4 cursor-pointer opacity-90 hover:opacity-100 transition-opacity max-w-full overflow-hidden ${isMine ? "bg-black/10 border-on-primary text-on-primary" : "bg-black/20 border-primary text-on-surface"}`}
+                              onClick={() => {
+                                const el = document.getElementById(`msg-${msg.reply_to_id}`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }}
+                            >
+                              <div className={`font-bold text-xs mb-0.5 ${isMine ? "text-on-primary" : "text-primary"}`}>
+                                {(() => {
+                                  const rMsg = messages.find(m => m.id === msg.reply_to_id);
+                                  if (!rMsg) return "Unknown";
+                                  return rMsg.sender_wallet === publicKey?.toString() ? "You" : otherUser?.display_name;
+                                })()}
+                              </div>
+                              <div className="truncate text-xs opacity-90">
+                                {(() => {
+                                  const rMsg = messages.find(m => m.id === msg.reply_to_id);
+                                  if (!rMsg) return "Message deleted or not loaded";
+                                  return rMsg.decryptedText || "Media";
+                                })()}
+                              </div>
+                            </div>
+                          )}
+                        
+                          {/* Media */}
+                          {msg.decryptedMedia && (
+                            <div className="rounded-xl overflow-hidden max-w-[250px] max-h-[250px]">
+                              {msg.decryptedMedia.endsWith('.mp4') ? (
+                                <video src={msg.decryptedMedia} autoPlay loop muted className="w-full h-full object-cover" />
+                              ) : (
+                                <img src={msg.decryptedMedia} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Text */}
+                          {msg.decryptedText && (!msg.is_tip || (msg.is_tip && msg.decryptedText !== "Sent a tip")) && (
+                            <div className={`px-2.5 py-1 ${msg.decryptedMedia ? "mt-1.5" : ""}`}>
+                              {msg.decryptedText}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className={`text-[11px] text-on-surface-variant mt-1 px-1 flex items-center gap-1 ${isMine ? "justify-end" : "justify-start"}`}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {isMine && (
+                          <span className={`material-symbols-outlined text-[14px] ${msg.is_read ? "text-[#3B82F6]" : "text-outline-variant"}`} style={{ fontVariationSettings: "'FILL' 0, 'wght' 600" }}>
+                            done_all
+                          </span>
                         )}
                       </div>
-                    )}
-                    
-                    {msg.decryptedText && (!msg.is_tip || (msg.is_tip && msg.decryptedText !== "Sent a tip")) && (
-                      <div className={`px-4 py-2.5 rounded-2xl text-[15px] ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
-                        {msg.decryptedText}
-                      </div>
-                    )}
-                    
-                    <div className={`text-[11px] text-on-surface-variant mt-1 px-1 flex items-center gap-1 ${isMine ? "justify-end" : "justify-start"}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {isMine && (
-                        <span className={`material-symbols-outlined text-[14px] ${msg.is_read ? "text-[#3B82F6]" : "text-outline-variant"}`} style={{ fontVariationSettings: "'FILL' 0, 'wght' 600" }}>
-                          done_all
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -570,7 +694,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {/* Input Area */}
-      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0">
+      <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0 flex flex-col gap-2">
         {!isMutual ? (
           <div className="text-center p-3 text-on-surface-variant font-label-md bg-surface-container rounded-xl border border-outline-variant/50">
             You must follow each other to send messages.
@@ -579,37 +703,87 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           <div className="text-center p-2 text-error font-label-md bg-error/10 rounded-xl">
             User hasn't enabled DMs yet. They need to unlock DMs in their inbox first.
           </div>
+        ) : isSelectionMode ? (
+          <div className="flex items-center justify-between w-full h-11 px-4 bg-surface-container rounded-full border border-outline-variant/50">
+            <button onClick={() => { setIsSelectionMode(false); setSelectedMessageIds(new Set()); }} className="text-on-surface-variant font-bold text-sm hover:text-on-surface transition-colors">Cancel</button>
+            <span className="font-bold text-sm">{selectedMessageIds.size} Selected</span>
+            <button onClick={handleDeleteSelected} disabled={selectedMessageIds.size === 0} className="text-error font-bold text-sm disabled:opacity-50 hover:opacity-80 transition-colors flex items-center gap-1">
+              <span className="material-symbols-outlined text-[18px]">delete</span> Delete
+            </button>
+          </div>
         ) : (
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSend(inputText); }}
-            className="flex items-center gap-2 bg-surface-container border border-outline-variant/50 rounded-full pl-4 pr-1 py-1 overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full"
-          >
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => handleInputChange(e as any)}
-              onPaste={handlePaste}
-              placeholder="Message..."
-              className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant focus:outline-none min-w-0"
-            />
-            <div className="flex items-center gap-1 shrink-0">
-              <button type="button" onClick={() => setIsMediaOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">image</span>
-              </button>
-              <button type="button" onClick={() => setIsTipOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-              </button>
-              <button 
-                type="submit" 
-                disabled={!inputText.trim()}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white bg-primary hover:bg-primary/90 disabled:opacity-50 transition-colors ml-1"
-              >
-                <span className="material-symbols-outlined text-[18px]">send</span>
-              </button>
-            </div>
-          </form>
+          <>
+            {replyingTo && (
+              <div className="bg-surface-container-high p-2 px-3 rounded-xl flex justify-between items-center text-sm border-l-4 border-primary">
+                <div className="flex flex-col min-w-0 mr-2">
+                  <span className="font-bold text-primary text-xs">{replyingTo.sender_wallet === publicKey?.toString() ? "You" : otherUser?.display_name}</span>
+                  <span className="truncate text-on-surface-variant text-xs">{replyingTo.decryptedText || "Media"}</span>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1 shrink-0 hover:bg-surface-container-highest rounded-full text-on-surface-variant transition-colors">
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            )}
+            <form 
+              onSubmit={(e) => { e.preventDefault(); handleSend(inputText); }}
+              className="flex items-center gap-2 bg-surface-container border border-outline-variant/50 rounded-full pl-4 pr-1 py-1 overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full"
+            >
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => handleInputChange(e as any)}
+                onPaste={handlePaste}
+                placeholder="Message..."
+                className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant focus:outline-none min-w-0"
+              />
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => setIsMediaOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">image</span>
+                </button>
+                <button type="button" onClick={() => setIsTipOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!inputText.trim()}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white bg-primary hover:bg-primary/90 disabled:opacity-50 transition-colors ml-1"
+                >
+                  <span className="material-symbols-outlined text-[18px]">send</span>
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </div>
+
+      {contextMenu && (
+        <div 
+          className="fixed z-50 bg-surface-container-highest border border-outline-variant shadow-xl rounded-xl py-1 min-w-[150px] flex flex-col"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            className="w-full text-left px-4 py-2 hover:bg-surface-container text-sm flex items-center gap-2"
+            onClick={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); }}
+          >
+            <span className="material-symbols-outlined text-[18px]">reply</span>
+            Reply
+          </button>
+          {contextMenu.msg.sender_wallet === publicKey?.toString() && (
+            <button 
+              className="w-full text-left px-4 py-2 hover:bg-surface-container text-sm text-error flex items-center gap-2"
+              onClick={() => { 
+                setIsSelectionMode(true); 
+                toggleSelection(contextMenu.msg.id); 
+                setContextMenu(null); 
+              }}
+            >
+              <span className="material-symbols-outlined text-[18px]">delete</span>
+              Select to Delete
+            </button>
+          )}
+        </div>
+      )}
 
       {isMediaOpen && (
         <MediaPickerModal
