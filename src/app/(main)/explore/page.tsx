@@ -8,6 +8,7 @@ import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Virtuoso } from "react-virtuoso";
 
 const TABS = ["Trending", "DeFi", "NFTs", "Infrastructure", "Airdrop", "dApp"];
 
@@ -101,6 +102,14 @@ function ExploreContent() {
     }
   };
 
+  const itemContent = useCallback((index: number, post: Post) => {
+    return (
+      <div className="pb-md">
+        <PostCard post={post} />
+      </div>
+    );
+  }, []);
+
   return (
     <>
       <div className="sticky top-16 md:top-0 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
@@ -174,15 +183,19 @@ function ExploreContent() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-md">
+        <div className="relative">
           {query && (
-            <p className="font-body-sm text-on-surface-variant px-xs">
+            <p className="font-body-sm text-on-surface-variant px-xs mb-md">
               Posts matching <span className="text-on-surface font-bold">&ldquo;{query}&rdquo;</span>
             </p>
           )}
-          {posts.map((post, i) => (
-            <PostCard key={`${post.id}-${i}`} post={post} />
-          ))}
+          <Virtuoso
+            useWindowScroll
+            data={posts}
+            computeItemKey={(index, post) => post.id}
+            overscan={400}
+            itemContent={itemContent}
+          />
         </div>
       )}
     </>

@@ -201,15 +201,13 @@ export default function Feed({ posts }: FeedProps) {
     );
   }
 
-  const itemContent = (index: number) => {
-    const item = feedItems[index];
+  const itemContent = useCallback((index: number, item: FeedItem) => {
     if (!item) return null;
 
     return (
       <div className="pb-md">
         {item.type === "tip_activity" ? (
           <PostCard
-            key={`tip-${item.post.id}-${index}`}
             post={item.post}
             tipActivity={{
               tipperUsername: item.tipper?.username,
@@ -219,16 +217,13 @@ export default function Feed({ posts }: FeedProps) {
             }}
           />
         ) : (
-          <PostCard
-            key={`post-${item.post.id}-${item.post.isRepost ? "repost" : "post"}-${index}`}
-            post={item.post}
-          />
+          <PostCard post={item.post} />
         )}
       </div>
     );
-  };
+  }, []);
 
-  const Footer = () => {
+  const Footer = useCallback(() => {
     if (isLoadingMore) return <PostSkeleton />;
     if (!hasMore && feedItems.length > 0) {
       return (
@@ -249,7 +244,7 @@ export default function Feed({ posts }: FeedProps) {
       );
     }
     return null;
-  };
+  }, [isLoadingMore, hasMore, feedItems.length, router]);
 
   return (
     <div className="relative">
@@ -272,6 +267,7 @@ export default function Feed({ posts }: FeedProps) {
       <Virtuoso
         useWindowScroll
         data={feedItems}
+        computeItemKey={(index, item) => `${item.type}-${item.post.id}-${item.sortKey}`}
         endReached={loadMorePosts}
         overscan={400}
         itemContent={itemContent}
