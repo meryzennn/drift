@@ -415,16 +415,16 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       
       {/* Profile Info Section */}
       <div className="pt-20 px-4 md:px-6 pb-6 border-b border-outline-variant">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <div className="flex items-center gap-xs">
-              <h1 className="font-headline-lg text-headline-lg md:text-headline-lg text-on-background font-bold tracking-tight">{profile?.display_name || "Anonymous User"}</h1>
-              <span className="material-symbols-outlined text-[24px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-y-4">
+          <div className="w-full sm:w-auto">
+            <div className="flex items-center gap-xs flex-wrap">
+              <h1 className="font-headline-lg text-headline-lg md:text-headline-lg text-on-background font-bold tracking-tight break-all">{profile?.display_name || "Anonymous User"}</h1>
+              <span className="material-symbols-outlined text-[24px] text-primary shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
             </div>
-            <p className="font-mono text-[14px] text-outline mt-1 flex items-center gap-1">
+            <p className="font-mono text-[14px] text-outline mt-1 flex items-center gap-1 flex-wrap">
               @{profile?.username || formatAddress(profile?.wallet_address || "")}
               <span 
-                className="material-symbols-outlined text-[14px] text-surface-tint cursor-pointer"
+                className="material-symbols-outlined text-[14px] text-surface-tint cursor-pointer shrink-0"
                 onClick={() => {
                   navigator.clipboard.writeText(profile?.wallet_address || "");
                   toast.success("Wallet address copied!");
@@ -434,13 +434,13 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
               </span>
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-start sm:justify-end w-full sm:w-auto">
             {isOwner ? (
               <button 
                 onClick={() => router.push("/profile/edit")}
-                className="px-4 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-lg font-label-md transition-colors flex items-center gap-2"
+                className="px-3 py-1.5 md:px-4 md:py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-full font-label-sm md:font-label-md transition-colors flex items-center gap-1.5 md:gap-2"
               >
-                <span className="material-symbols-outlined text-[18px]">edit</span>
+                <span className="material-symbols-outlined text-[16px] md:text-[18px]">edit</span>
                 Edit Profile
               </button>
             ) : (

@@ -6,7 +6,7 @@ import SearchBar from "@/components/SearchBar";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso } from "react-virtuoso";
 
@@ -19,9 +19,19 @@ interface UserResult {
   avatar_url?: string;
 }
 
+const getCache = () => {
+  if (typeof window === 'undefined') return { index: {} as Record<string, number> };
+  if (!(window as any)._feedCache) {
+    (window as any)._feedCache = { index: {} };
+  }
+  return (window as any)._feedCache;
+};
+
 function ExploreContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const cacheKey = `${pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
   const initialQuery = searchParams.get("q") || "";
 
   const [activeTab, setActiveTab] = useState("Trending");
@@ -195,6 +205,10 @@ function ExploreContent() {
             computeItemKey={(index, post) => post.id}
             overscan={400}
             itemContent={itemContent}
+            initialTopMostItemIndex={getCache().index[cacheKey] || 0}
+            rangeChanged={(range) => {
+              getCache().index[cacheKey] = range.startIndex;
+            }}
           />
         </div>
       )}
