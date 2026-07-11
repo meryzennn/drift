@@ -58,12 +58,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
   const [swipeState, setSwipeState] = useState<{ id: string, startX: number, currentX: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, msg: any } | null>(null);
+  const [deletePrompt, setDeletePrompt] = useState<{ singleId?: string, multiple?: boolean } | null>(null);
   const swipeThreshold = 60;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ id: string, time: number } | null>(null);
 
   // Check Authsession key
   useEffect(() => {
@@ -261,8 +263,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       .on('postgres_changes', {
         event: 'DELETE',
         schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${convoId}`
+        table: 'messages'
       }, (payload) => {
         setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
       })
@@ -377,13 +378,27 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
   const handleDeleteSelected = async () => {
     if (selectedMessageIds.size === 0) return;
+    setDeletePrompt({ multiple: true });
+  };
+
+  const confirmDelete = async () => {
     try {
-      const idsToDelete = Array.from(selectedMessageIds);
-      await supabase.from("messages").delete().in("id", idsToDelete);
-      setIsSelectionMode(false);
-      setSelectedMessageIds(new Set());
-    } catch (e) {
-      toast.error("Failed to delete messages");
+      if (deletePrompt?.singleId) {
+        const { error } = await supabase.from("messages").delete().eq("id", deletePrompt.singleId);
+        if (error) throw error;
+        setMessages(prev => prev.filter(msg => msg.id !== deletePrompt.singleId));
+      } else if (deletePrompt?.multiple) {
+        const idsToDelete = Array.from(selectedMessageIds);
+        const { error } = await supabase.from("messages").delete().in("id", idsToDelete);
+        if (error) throw error;
+        setMessages(prev => prev.filter(msg => !idsToDelete.includes(msg.id)));
+        setIsSelectionMode(false);
+        setSelectedMessageIds(new Set());
+      }
+      setDeletePrompt(null);
+    } catch (e: any) {
+      toast.error("Failed to delete message: " + (e.message || "Unknown error"));
+      setDeletePrompt(null);
     }
   };
 
@@ -409,6 +424,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       const diff = swipeState!.currentX - swipeState!.startX;
       if (diff > swipeThreshold && !isSelectionMode) {
         setReplyingTo(msg);
+      } else if (Math.abs(diff) < 10 && !isSelectionMode && msg.sender_wallet === publicKey?.toString()) {
+        const now = Date.now();
+        if (lastTapRef.current && lastTapRef.current.id === msg.id && (now - lastTapRef.current.time < 300)) {
+          setDeletePrompt({ singleId: msg.id });
+          lastTapRef.current = null;
+        } else {
+          lastTapRef.current = { id: msg.id, time: now };
+        }
       }
       setSwipeState(null);
     }
@@ -773,15 +796,42 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
             <button 
               className="w-full text-left px-4 py-2 hover:bg-surface-container text-sm text-error flex items-center gap-2"
               onClick={() => { 
-                setIsSelectionMode(true); 
-                toggleSelection(contextMenu.msg.id); 
+                setDeletePrompt({ singleId: contextMenu.msg.id }); 
                 setContextMenu(null); 
               }}
             >
               <span className="material-symbols-outlined text-[18px]">delete</span>
-              Select to Delete
+              Delete
             </button>
           )}
+        </div>
+      )}
+
+      {deletePrompt && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-container rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 border border-outline-variant shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-error">delete_forever</span>
+              Hapus Pesan?
+            </h3>
+            <p className="text-on-surface-variant text-sm">
+              Pesan ini akan dihapus untuk semua orang dan tidak bisa dikembalikan. Yakin?
+            </p>
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <button 
+                onClick={() => setDeletePrompt(null)} 
+                className="px-5 py-2 font-bold text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-colors"
+              >
+                No
+              </button>
+              <button 
+                onClick={confirmDelete} 
+                className="px-5 py-2 font-bold text-error bg-error/10 hover:bg-error/20 rounded-full transition-colors"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
