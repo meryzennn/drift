@@ -215,7 +215,7 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
               @{post.authorProfile?.username || formatAddress(post.authorPublicKey)}
             </Link>
             <span className="text-on-surface-variant text-sm px-xs">•</span>
-            <span className="font-body-sm text-on-surface-variant">
+            <span className="font-body-sm text-on-surface-variant" suppressHydrationWarning>
               {formatDistanceToNow(new Date(post.createdAt))}
             </span>
 

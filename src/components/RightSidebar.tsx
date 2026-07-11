@@ -1,6 +1,6 @@
 export default function RightSidebar() {
   return (
-    <aside className="hidden xl:flex flex-col gap-lg w-[320px] sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pt-xl pb-lg hide-scrollbar">
+    <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pt-xl pb-lg h-fit">
       
       {/* Search Bar */}
       <div className="relative">
@@ -62,6 +62,13 @@ export default function RightSidebar() {
         </div>
       </div>
 
+      {/* Footer */}
+      <div className="px-md flex flex-wrap gap-x-3 gap-y-1 font-body-sm text-outline text-[12px]">
+        <a className="hover:underline" href="#">Terms of Service</a>
+        <a className="hover:underline" href="#">Privacy Policy</a>
+        <a className="hover:underline" href="#">Cookie Policy</a>
+        <span>© 2024 Drift</span>
+      </div>
     </aside>
   );
 }
