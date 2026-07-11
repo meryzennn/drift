@@ -505,14 +505,35 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     }
   };
   
-  const handleSendTip = async (amount: number, message?: string) => {
+  const handleSendTip = async (amount: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => {
     if (!publicKey || !otherUser) return;
     try {
       const signature = await sendTip(publicKey, otherUser.wallet_address, amount, sendTransaction);
       if (signature) {
         toast.success(`Successfully tipped ${amount} SOL! 🎉`);
         setIsTipOpen(false);
-        handleSend(message || "", undefined, amount);
+        
+        let finalMediaUrl = mediaGifUrl;
+        
+        if (mediaFile) {
+          toast.loading("Uploading tip media...", { id: "tip-media" });
+          try {
+            const formData = new FormData();
+            formData.append("file", mediaFile);
+            formData.append("type", "post");
+            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            if (!res.ok) throw new Error("Upload failed");
+            const data = await res.json();
+            finalMediaUrl = data.url;
+            toast.dismiss("tip-media");
+          } catch (err) {
+            toast.dismiss("tip-media");
+            toast.error("Failed to upload tip media");
+          }
+        }
+        
+        handleSend(message || "", finalMediaUrl, amount);
+        
         // Trigger confetti locally and broadcast to the other user
         triggerConfetti();
         channelRef.current?.send({ type: 'broadcast', event: 'confetti', payload: {} });
@@ -666,7 +687,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                     >
                       {/* Tip Card — standalone */}
                       {msg.is_tip && (
-                        <div className={`flex flex-col rounded-2xl mb-1 overflow-hidden border ${
+                        <div className={`inline-flex flex-col w-fit min-w-[200px] max-w-[280px] rounded-2xl mb-1 overflow-hidden border ${
                           isMine
                             ? "bg-gradient-to-br from-yellow-500/25 to-amber-600/15 border-yellow-500/40 rounded-tr-sm"
                             : "bg-gradient-to-br from-yellow-500/15 to-amber-600/10 border-yellow-500/25 rounded-tl-sm"
@@ -678,17 +699,32 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                               <div className="text-lg font-bold text-yellow-300">{msg.tip_amount} SOL</div>
                             </div>
                           </div>
+                          
+                          {/* Media inside Tip Card */}
+                          {msg.decryptedMedia && (
+                            <div 
+                              className="w-full cursor-zoom-in border-t border-yellow-500/20 bg-black/40"
+                              onClick={() => !msg.decryptedMedia?.endsWith('.mp4') && setLightboxSrc(msg.decryptedMedia)}
+                            >
+                              {msg.decryptedMedia.endsWith('.mp4') ? (
+                                <video src={msg.decryptedMedia} autoPlay loop muted className="w-full max-h-[250px] object-cover" />
+                              ) : (
+                                <img src={msg.decryptedMedia} alt="" className="w-full max-h-[250px] object-cover" />
+                              )}
+                            </div>
+                          )}
+
                           {/* Optional message inside the tip card */}
                           {msg.decryptedText && msg.decryptedText !== "Sent a tip" && (
-                            <div className="px-4 pb-3 text-sm text-white/80 border-t border-yellow-500/20 pt-2">
+                            <div className="px-4 py-2.5 text-sm text-white/90 bg-black/10 border-t border-yellow-500/20">
                               {msg.decryptedText}
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Unified Message Bubble — only for reply/media/non-tip text */}
-                      {(msg.reply_to_id || msg.decryptedMedia || (msg.decryptedText && !msg.is_tip && msg.decryptedText !== "Sent a tip")) && (
+                      {/* Unified Message Bubble — only for non-tip messages */}
+                      {!msg.is_tip && (msg.reply_to_id || msg.decryptedMedia || msg.decryptedText) && (
                         <div className={`flex flex-col rounded-2xl text-[15px] overflow-hidden ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
                           
                           {/* Reply Snippet */}
@@ -732,7 +768,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                           )}
                           
                           {/* Text */}
-                          {msg.decryptedText && (!msg.is_tip || msg.decryptedText !== "Sent a tip") && (
+                          {msg.decryptedText && (
                             <div className="px-3 py-2">
                               {msg.decryptedText}
                             </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import MediaPickerModal from "./MediaPickerModal";
 
 interface SendTipModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface SendTipModalProps {
   recipientAddress: string;
   recipientName?: string;
   recipientAvatar?: string;
-  onConfirm: (amount: number, message?: string) => void;
+  onConfirm: (amount: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => void;
   allowMessage?: boolean;
 }
 
@@ -32,6 +33,9 @@ export default function SendTipModal({
   const [message, setMessage] = useState<string>("");
   const [inputMode, setInputMode] = useState<"sol" | "usd">("sol");
   const [solPrice, setSolPrice] = useState<number | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaGifUrl, setMediaGifUrl] = useState<string | null>(null);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   
   const { connected, publicKey } = useWallet();
@@ -89,6 +93,8 @@ export default function SendTipModal({
       setUsdAmount(solPrice ? (0.1 * solPrice).toFixed(2) : "");
       setInputMode("sol");
       setMessage("");
+      setMediaFile(null);
+      setMediaGifUrl(null);
     }
   }, [isOpen]);
 
@@ -128,7 +134,7 @@ export default function SendTipModal({
   const handleConfirm = () => {
     const amountNum = parseFloat(solAmount);
     if (!isNaN(amountNum) && amountNum > 0) {
-      onConfirm(amountNum, allowMessage ? message : undefined);
+      onConfirm(amountNum, allowMessage ? message : undefined, mediaFile || undefined, mediaGifUrl || undefined);
     }
   };
 
@@ -300,17 +306,53 @@ export default function SendTipModal({
           </div>
         </div>
 
-        {/* Optional Message Input */}
+        {/* Optional Message & Media Input */}
         {allowMessage && (
-          <div className="px-lg pb-md">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Add a message... (optional)"
-              maxLength={100}
-              className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-3 font-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-            />
+          <div className="px-lg pb-md flex flex-col gap-sm">
+            <div className="relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add a message... (optional)"
+                maxLength={64}
+                className="w-full bg-surface-container border border-outline-variant rounded-xl pl-4 pr-12 py-3 font-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              />
+              <button
+                onClick={(e) => { e.preventDefault(); setIsMediaPickerOpen(true); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center text-primary transition-colors"
+                title="Attach Media"
+              >
+                <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+              </button>
+            </div>
+            
+            <div className="flex justify-end -mt-1 px-1">
+              <span className={`text-[11px] font-medium transition-colors ${message.length >= 64 ? "text-error" : "text-on-surface-variant"}`}>
+                {message.length}/64
+              </span>
+            </div>
+            
+            {/* Media Preview */}
+            {(mediaFile || mediaGifUrl) && (
+              <div className="relative inline-block mt-2 self-start rounded-lg overflow-hidden border border-outline-variant max-w-[200px] max-h-[150px]">
+                {mediaFile ? (
+                  mediaFile.type.startsWith("video/") ? (
+                    <video src={URL.createObjectURL(mediaFile)} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={URL.createObjectURL(mediaFile)} alt="Preview" className="w-full h-full object-cover" />
+                  )
+                ) : mediaGifUrl ? (
+                  <img src={mediaGifUrl} alt="GIF Preview" className="w-full h-full object-cover" />
+                ) : null}
+                <button
+                  onClick={() => { setMediaFile(null); setMediaGifUrl(null); }}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white backdrop-blur-sm transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -334,6 +376,24 @@ export default function SendTipModal({
           </button>
         </div>
       </div>
+
+      {isMediaPickerOpen && (
+        <MediaPickerModal
+          type="post"
+          maxMB={10}
+          onClose={() => setIsMediaPickerOpen(false)}
+          onFile={(file) => {
+            setMediaFile(file);
+            setMediaGifUrl(null);
+            setIsMediaPickerOpen(false);
+          }}
+          onGif={(url) => {
+            setMediaGifUrl(url);
+            setMediaFile(null);
+            setIsMediaPickerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 

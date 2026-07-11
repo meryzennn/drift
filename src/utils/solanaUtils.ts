@@ -21,16 +21,20 @@ export const sendTip = async (
     );
 
     // Get the latest blockhash
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
+    const latestBlockhash = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = latestBlockhash.blockhash;
     transaction.feePayer = fromPublicKey;
 
     // Send the transaction using the wallet adapter
     const signature = await sendTransaction(transaction, connection);
     console.log("Tip transaction sent! Signature:", signature);
     
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, "confirmed");
+    // Wait for confirmation using the recommended strategy
+    await connection.confirmTransaction({
+      signature,
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+    }, "confirmed");
     console.log("Tip transaction confirmed!");
     
     return signature;
