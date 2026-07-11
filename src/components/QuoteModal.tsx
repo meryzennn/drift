@@ -6,6 +6,7 @@ import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
 import { Post } from "@/types";
 import { formatDistanceToNow } from "date-fns";
+import { createPortal } from "react-dom";
 
 interface QuoteModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
+  
+  if (typeof document === "undefined") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +51,6 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
       if (postError) throw postError;
 
       // Also track it as a repost for the current user, so it increments the reposts count
-      // Actually, Twitter treats Quotes as new posts, but they also increment the quote count of the original post.
-      // We don't have a quote count, so we'll just insert into reposts as well to increment repost count.
       await supabase.from("reposts").insert([
         {
           user_wallet: publicKey.toString(),
@@ -69,15 +70,20 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+  return createPortal(
+    <div 
+      className="fixed z-[600] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <div 
-        className="w-full max-w-xl bg-surface-container-high border border-outline-variant rounded-2xl flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+        className="bg-surface-container-high border border-outline-variant rounded-2xl flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+        style={{ width: '500px', maxWidth: '90vw' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-md border-b border-outline-variant">
           <button 
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface transition-colors"
           >
             <span className="material-symbols-outlined">close</span>
@@ -141,6 +147,7 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
