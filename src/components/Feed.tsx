@@ -2,10 +2,12 @@
 
 import { Post } from "@/types";
 import PostCard from "./PostCard";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
+import PostSkeleton from "./skeletons/PostSkeleton";
+import { useRouter } from "next/navigation";
 
 interface FeedItem {
   type: "post" | "tip_activity";
@@ -22,19 +24,33 @@ interface FeedProps {
 
 export default function Feed({ posts }: FeedProps) {
   const { publicKey } = useWallet();
+  const router = useRouter();
+  
+  const [internalPosts, setInternalPosts] = useState<Post[]>(posts);
+  const [hasMore, setHasMore] = useState(posts.length >= 10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [newPostsCount, setNewPostsCount] = useState(0);
+  
   const [feedItems, setFeedItems] = useState<FeedItem[]>(
-    posts.map(p => ({ type: "post", post: p, sortKey: p.createdAt }))
+    internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt }))
   );
   const [loadingTipActivity, setLoadingTipActivity] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Sync prop changes (e.g., from router.refresh)
+  useEffect(() => {
+    setInternalPosts(posts);
+    setHasMore(posts.length >= 10);
+    setNewPostsCount(0);
+  }, [posts]);
 
   useEffect(() => {
     if (!publicKey) {
-      // No wallet: just show raw posts
-      setFeedItems(posts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+      setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
       return;
     }
     fetchTipActivity();
-  }, [publicKey, posts]);
+  }, [publicKey, internalPosts]);
 
   const fetchTipActivity = async () => {
     if (!publicKey) return;
@@ -49,7 +65,7 @@ export default function Feed({ posts }: FeedProps) {
 
       const followedWallets = (followData || []).map((f: any) => f.following_wallet);
       if (followedWallets.length === 0) {
-        setFeedItems(posts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+        setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
         return;
       }
 
@@ -69,7 +85,7 @@ export default function Feed({ posts }: FeedProps) {
         .limit(50);
 
       if (!tipNotifs || tipNotifs.length === 0) {
-        setFeedItems(posts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+        setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
         return;
       }
 
@@ -109,9 +125,8 @@ export default function Feed({ posts }: FeedProps) {
       }
 
       // 5. Merge: posts + tip activities sorted by time
-      // Like reposts, same post can appear with tip banner even if already in feed
       const merged: FeedItem[] = [
-        ...posts.map(p => ({ type: "post" as const, post: p, sortKey: p.createdAt })),
+        ...internalPosts.map(p => ({ type: "post" as const, post: p, sortKey: p.createdAt })),
         ...tipItems,
       ];
 
@@ -119,11 +134,83 @@ export default function Feed({ posts }: FeedProps) {
       setFeedItems(merged);
     } catch (err) {
       console.error("Tip activity error:", err);
-      setFeedItems(posts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+      setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
     } finally {
       setLoadingTipActivity(false);
     }
   };
+
+  // --- Infinite Scroll & Polling Logic ---
+  
+  const loadMorePosts = async () => {
+    if (isLoadingMore || !hasMore || internalPosts.length === 0) return;
+    setIsLoadingMore(true);
+
+    try {
+      const oldestDate = internalPosts[internalPosts.length - 1].createdAt;
+      
+      const { data } = await supabase
+        .from("posts")
+        .select(POST_SELECT_QUERY)
+        .is("reply_to_post_id", null)
+        .lt("created_at", oldestDate)
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (data && data.length > 0) {
+        const olderPosts = data.map(mapPostData);
+        setInternalPosts(prev => {
+          const uniquePosts = [...prev];
+          for (const post of olderPosts) {
+            if (!uniquePosts.find(p => p.id === post.id)) uniquePosts.push(post);
+          }
+          return uniquePosts;
+        });
+        if (data.length < 10) setHasMore(false);
+      } else {
+        setHasMore(false);
+      }
+    } catch (e) {
+      console.error("Error loading more posts:", e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        loadMorePosts();
+      }
+    }, { rootMargin: "200px" });
+    
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [isLoadingMore, hasMore, internalPosts]);
+
+  useEffect(() => {
+    if (internalPosts.length === 0) return;
+    const newestDate = internalPosts[0].createdAt;
+    
+    const pollTimer = setInterval(async () => {
+      try {
+        const { count } = await supabase
+          .from("posts")
+          .select("*", { count: 'exact', head: true })
+          .is("reply_to_post_id", null)
+          .gt("created_at", newestDate);
+          
+        if (count && count > 0) {
+          setNewPostsCount(count);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 30000);
+    
+    return () => clearInterval(pollTimer);
+  }, [internalPosts]);
 
   if (feedItems.length === 0 && !loadingTipActivity) {
     return (
@@ -134,7 +221,23 @@ export default function Feed({ posts }: FeedProps) {
   }
 
   return (
-    <div className="flex flex-col gap-md">
+    <div className="flex flex-col gap-md relative">
+      {/* New Posts Indicator */}
+      {newPostsCount > 0 && (
+        <div className="sticky top-[72px] z-30 flex justify-center mb-md pointer-events-none">
+          <button 
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              router.refresh();
+            }}
+            className="pointer-events-auto bg-primary text-on-primary font-bold font-label-md px-6 py-2.5 rounded-full shadow-xl shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+            {newPostsCount} New {newPostsCount === 1 ? 'Post' : 'Posts'}
+          </button>
+        </div>
+      )}
+
       {feedItems.map((item, index) => {
         if (item.type === "tip_activity") {
           return (
@@ -154,6 +257,31 @@ export default function Feed({ posts }: FeedProps) {
           <PostCard key={`post-${item.post.id}-${item.post.isRepost ? "repost" : "post"}-${index}`} post={item.post} />
         );
       })}
+
+      {/* Infinite Scroll Target */}
+      {hasMore && (
+        <div ref={loadMoreRef} className="w-full">
+          {isLoadingMore && <PostSkeleton />}
+        </div>
+      )}
+
+      {/* End of Feed Message */}
+      {!hasMore && feedItems.length > 0 && (
+        <div className="text-center py-xl border-t border-outline-variant mt-md">
+          <p className="font-label-md font-bold text-on-surface">You're all caught up!</p>
+          <p className="font-body-sm text-on-surface-variant mt-1">No more posts to show.</p>
+          <button 
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              router.refresh();
+            }}
+            className="mt-4 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-full font-label-sm transition-colors flex items-center gap-2 mx-auto"
+          >
+            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            Refresh Feed
+          </button>
+        </div>
+      )}
     </div>
   );
 }

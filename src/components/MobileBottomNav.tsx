@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const unreadCount = useUnreadNotifications();
 
   const links = [
@@ -23,6 +24,13 @@ export default function MobileBottomNav() {
           <Link 
             key={link.href} 
             href={link.href}
+            onClick={(e) => {
+              if (isActive) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                router.refresh();
+              }
+            }}
             className={`flex flex-col items-center justify-center w-full h-full transition-colors relative ${
               isActive ? "text-primary" : "text-outline hover:text-on-surface"
             }`}

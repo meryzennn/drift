@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
+import NFTGridSkeleton from "@/components/skeletons/NFTGridSkeleton";
 
 export default function SettingsPage() {
   const { publicKey, connected } = useWallet();
@@ -109,8 +110,9 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-2xl h-[50vh]">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="max-w-4xl mx-auto px-4 md:px-6 pt-2xl">
+        <div className="h-8 w-48 bg-surface-container-highest rounded animate-pulse mb-6"></div>
+        <NFTGridSkeleton count={10} />
       </div>
     );
   }

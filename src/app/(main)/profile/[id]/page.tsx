@@ -14,6 +14,7 @@ import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import NFTGrid from "@/components/NFTGrid";
 import SendTipModal from "@/components/SendTipModal";
 import { sendTip } from "@/utils/solanaUtils";
+import ProfileSkeleton from "@/components/skeletons/ProfileSkeleton";
 
 export default function DynamicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -239,7 +240,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   };
 
   if (loading) {
-    return <div className="p-xl text-center text-on-surface-variant font-body-md">Loading profile...</div>;
+    return <ProfileSkeleton />;
   }
 
   if (notFound) {

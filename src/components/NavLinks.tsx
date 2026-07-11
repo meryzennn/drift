@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 export default function NavLinks() {
   const pathname = usePathname();
+  const router = useRouter();
   const unreadCount = useUnreadNotifications();
 
   const links = [
@@ -24,6 +25,13 @@ export default function NavLinks() {
           <Link 
             key={link.href} 
             href={link.href}
+            onClick={(e) => {
+              if (isActive) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                router.refresh();
+              }
+            }}
             className={`flex items-center gap-md px-md py-sm rounded-full cursor-pointer active:opacity-80 transition-all ${
               isActive 
                 ? "text-primary bg-primary-container/10" 

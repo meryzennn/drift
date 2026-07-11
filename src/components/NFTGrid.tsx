@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import NFTGridSkeleton from "./skeletons/NFTGridSkeleton";
 
 interface NFTGridProps {
   walletAddress: string;
@@ -84,11 +85,7 @@ export default function NFTGrid({ walletAddress, featuredNfts = [] }: NFTGridPro
   const visibleNfts = sortedNfts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-2xl">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <NFTGridSkeleton count={8} />;
   }
 
   if (error) {
