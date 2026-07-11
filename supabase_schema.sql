@@ -105,3 +105,29 @@ CREATE POLICY "Anyone can insert reposts" ON public.reposts
 
 CREATE POLICY "Users can delete own reposts" ON public.reposts
     FOR DELETE USING (true);
+
+-- FOLLOWS TABLE
+CREATE TABLE IF NOT EXISTS public.follows (
+    follower_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    following_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (follower_wallet, following_wallet)
+);
+
+ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Follows are viewable by everyone" ON public.follows
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert follows" ON public.follows
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can delete follows" ON public.follows
+    FOR DELETE USING (true);
+
+-- ADDED POLICIES FOR POSTS (EDIT & DELETE)
+CREATE POLICY "Anyone can update posts" ON public.posts
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Anyone can delete posts" ON public.posts
+    FOR DELETE USING (true);

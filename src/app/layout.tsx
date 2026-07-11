@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 
 import Navbar from "@/components/Navbar";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const inter = Inter({ subsets: ["latin"] });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -27,6 +28,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} ${jetbrainsMono.variable} bg-background text-on-background min-h-screen antialiased flex flex-col`}>
         <WalletContextProvider>
+          <ScrollToTop />
           <Navbar />
           <div className="flex-1 w-full relative">
             {children}

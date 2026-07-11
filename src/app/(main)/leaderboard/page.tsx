@@ -59,15 +59,6 @@ export default async function LeaderboardPage() {
                     ) : (
                       tipper.from_wallet.slice(0, 2)
                     )}
-                    {index === 0 && (
-                      <div className="absolute -top-2 -right-2 text-2xl">👑</div>
-                    )}
-                    {index === 1 && (
-                      <div className="absolute -top-2 -right-2 text-xl">🥈</div>
-                    )}
-                    {index === 2 && (
-                      <div className="absolute -top-2 -right-2 text-xl">🥉</div>
-                    )}
                   </div>
                   
                   <div>
