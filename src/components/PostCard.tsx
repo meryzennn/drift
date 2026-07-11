@@ -20,9 +20,10 @@ interface PostCardProps {
   post: Post;
   isDetail?: boolean;
   hideReplyIndicator?: boolean;
+  isHighlighted?: boolean;
 }
 
-export default function PostCard({ post, isDetail = false, hideReplyIndicator = false }: PostCardProps) {
+export default function PostCard({ post, isDetail = false, hideReplyIndicator = false, isHighlighted = false }: PostCardProps) {
   const router = useRouter();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
@@ -309,7 +310,12 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
 
   return (
     <article 
-      className={`bg-surface-container border border-outline-variant rounded-xl p-lg flex flex-col gap-md transition-colors duration-200 relative ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
+      id={post.id}
+      className={`bg-surface-container border rounded-xl p-lg flex flex-col gap-md transition-all duration-300 relative ${
+        isHighlighted 
+          ? 'border-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] bg-primary/5 ring-1 ring-primary/30' 
+          : 'border-outline-variant'
+      } ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
       onClick={handleCardClick}
     >
       {post.isRepost && post.repostedBy && (

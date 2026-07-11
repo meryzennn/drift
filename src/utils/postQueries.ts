@@ -14,10 +14,10 @@ export const POST_SELECT_QUERY = `
     display_name,
     avatar_url
   ),
-  comments ( count ),
+  replies:posts!reply_to_post_id ( count ),
   reposts ( count ),
   quotes:posts!quote_post_id ( count ),
-  quote_post:posts!quote_post_id (
+  quote_post:quote_post_id (
     id,
     content,
     media_url,
@@ -47,7 +47,7 @@ export function mapPostData(p: any): Post {
       displayName: p.users.display_name,
       avatarUrl: p.users.avatar_url,
     } : undefined,
-    commentsCount: p.comments?.[0]?.count ?? 0,
+    commentsCount: p.replies?.[0]?.count ?? 0,
     repostsCount: (p.reposts?.[0]?.count ?? 0) + (p.quotes?.[0]?.count ?? 0),
     quotePostId: p.quote_post_id,
     replyToPostId: p.reply_to_post_id,

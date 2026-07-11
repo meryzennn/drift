@@ -12,9 +12,10 @@ interface QuoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   quotedPost: Post;
+  onSuccess?: () => void;
 }
 
-export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalProps) {
+export default function QuoteModal({ isOpen, onClose, quotedPost, onSuccess }: QuoteModalProps) {
   const { publicKey } = useWallet();
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +69,7 @@ export default function QuoteModal({ isOpen, onClose, quotedPost }: QuoteModalPr
 
       toast.success("Quoted successfully!");
       setContent("");
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
       console.error("Quote error:", error);

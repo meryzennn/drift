@@ -17,7 +17,7 @@ const NOTIFICATION_QUERY = `
   is_read,
   created_at,
   actor:users!notifications_actor_wallet_fkey ( username, avatar_url ),
-  post:posts!notifications_post_id_fkey ( content )
+  post:posts!notifications_post_id_fkey ( content, reply_to_post_id )
 `;
 
 type FilterTab = "all" | "likes" | "reposts" | "replies" | "tips";
@@ -259,7 +259,7 @@ export default function NotificationsPage() {
                 {/* Post snippet */}
                 {n.post?.content && (
                   <Link
-                    href={n.post_id ? `/post/${n.post_id}` : "#"}
+                    href={n.type === "reply" && n.post.reply_to_post_id ? `/post/${n.post.reply_to_post_id}?highlight=${n.post_id}` : (n.post_id ? `/post/${n.post_id}` : "#")}
                     onClick={(e) => e.stopPropagation()}
                     className="block mt-xs"
                   >

@@ -8,8 +8,10 @@ import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 
 export const revalidate = 0;
 
-export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PostDetailPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ highlight?: string }> }) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
+  const highlightId = resolvedSearchParams?.highlight;
 
   // Fetch Post
   const { data: postData, error: postError } = await supabase
@@ -31,7 +33,16 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
     .eq("reply_to_post_id", id)
     .order("created_at", { ascending: false });
 
-  const replies: Post[] = (repliesData || []).map(mapPostData);
+  let replies: Post[] = (repliesData || []).map(mapPostData);
+
+  // If there's a highlighted reply, move it to the top
+  if (highlightId) {
+    const highlightIndex = replies.findIndex(r => r.id === highlightId);
+    if (highlightIndex > 0) {
+      const highlightedReply = replies.splice(highlightIndex, 1)[0];
+      replies.unshift(highlightedReply);
+    }
+  }
 
   post.commentsCount = replies.length;
 
@@ -44,7 +55,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Main Post */}
-      <div className="pt-md border-b border-outline-variant pb-md">
+      <div className="pt-md pb-xs">
         <PostCard post={post} isDetail={true} />
       </div>
 
@@ -59,7 +70,12 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           </div>
         ) : (
           replies.map(reply => (
-            <PostCard key={reply.id} post={reply} hideReplyIndicator={true} />
+            <PostCard 
+              key={reply.id} 
+              post={reply} 
+              hideReplyIndicator={true} 
+              isHighlighted={reply.id === highlightId} 
+            />
           ))
         )}
       </div>

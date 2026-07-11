@@ -137,6 +137,31 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
     setIsMediaPickerOpen(false);
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) {
+      if (item.type.startsWith("image/") || item.type === "video/mp4") {
+        const pastedFile = item.getAsFile();
+        if (pastedFile) {
+          if (pastedFile.type === "video/mp4" && pastedFile.size > 30 * 1024 * 1024) {
+            toast.error("Video must be less than 30MB");
+            return;
+          }
+          if (pastedFile.type.startsWith("image/") && pastedFile.size > 10 * 1024 * 1024) {
+            toast.error("Image must be less than 10MB");
+            return;
+          }
+          setFile(pastedFile);
+          setGifUrl(null);
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
   return (
     <div className="bg-surface-container border border-outline-variant rounded-xl p-md flex gap-md mb-md w-full">
       <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center text-primary font-bold">
@@ -152,6 +177,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, 255))}
+            onPaste={handlePaste}
             maxLength={255}
             className="w-full bg-transparent border-none text-on-surface placeholder:text-on-surface-variant font-body-lg resize-none focus:ring-0 p-0 min-h-[80px] outline-none"
             placeholder="What's happening in Web3?"
