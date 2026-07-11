@@ -11,6 +11,7 @@ export default async function Home() {
   const { data: postsData, error: postsError } = await supabase
     .from("posts")
     .select(POST_SELECT_QUERY)
+    .is("reply_to_post_id", null)
     .order("created_at", { ascending: false });
 
   if (postsError) {

@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-const VALID_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+const VALID_POST_TYPES = [...VALID_IMAGE_TYPES, "video/mp4"];
 
 const GIPHY_CATEGORIES = [
   { label: "Trending", query: "", icon: "trending_up" },
@@ -70,17 +71,30 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
 
   const validateAndHandle = useCallback((file: File) => {
     setDragError("");
-    if (!VALID_TYPES.includes(file.type)) {
-      setDragError("Invalid format. Use JPG, PNG, or GIF.");
+    
+    const validTypes = type === "post" ? VALID_POST_TYPES : VALID_IMAGE_TYPES;
+    
+    if (!validTypes.includes(file.type)) {
+      setDragError(`Invalid format. Use JPG, PNG, GIF${type === "post" ? ", or MP4" : ""}.`);
       return;
     }
-    const maxBytes = maxMB * 1024 * 1024;
-    if (file.size > maxBytes) {
-      setDragError(`File too large. Max ${maxMB}MB.`);
-      return;
+    
+    if (file.type === "video/mp4") {
+      const maxVideoBytes = 30 * 1024 * 1024;
+      if (file.size > maxVideoBytes) {
+        setDragError(`Video too large. Max 30MB.`);
+        return;
+      }
+    } else {
+      const maxBytes = maxMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setDragError(`Image too large. Max ${maxMB}MB.`);
+        return;
+      }
     }
+    
     onFile(file);
-  }, [maxMB, onFile]);
+  }, [maxMB, onFile, type]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -150,7 +164,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
             <div className="bg-surface-container rounded-lg p-md flex flex-col gap-xs border border-[#2a2a3a]">
               <p className="font-label-sm text-on-surface-variant">Accepted formats</p>
               <div className="flex gap-xs flex-wrap">
-                {["JPG", "PNG", "GIF"].map(f => (
+                {["JPG", "PNG", "GIF", ...(type === "post" ? ["MP4"] : [])].map(f => (
                   <span key={f} className="px-xs py-0.5 bg-surface-container-high border border-outline-variant rounded text-[11px] font-label-sm text-on-surface">{f}</span>
                 ))}
               </div>
@@ -161,7 +175,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
 
             {dragError && <p className="font-body-sm text-error">{dragError}</p>}
 
-            <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.gif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndHandle(f); e.target.value = ""; }} />
+            <input ref={fileInputRef} type="file" accept={type === "post" ? ".jpg,.jpeg,.png,.gif,.mp4" : ".jpg,.jpeg,.png,.gif"} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndHandle(f); e.target.value = ""; }} />
           </div>
         )}
 

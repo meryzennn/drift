@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const unreadCount = useUnreadNotifications();
 
   const links = [
     { href: "/", icon: "home" },
@@ -25,15 +27,19 @@ export default function MobileBottomNav() {
               isActive ? "text-primary" : "text-outline hover:text-on-surface"
             }`}
           >
-            <span 
-              className="material-symbols-outlined text-2xl" 
-              style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-            >
-              {link.icon}
-            </span>
-            {isActive && link.icon === "notifications" && (
-              <span className="absolute top-3 right-8 w-2 h-2 bg-primary-container rounded-full"></span>
-            )}
+            <div className="relative flex flex-col items-center justify-center">
+              <span 
+                className="material-symbols-outlined text-2xl" 
+                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+              >
+                {link.icon}
+              </span>
+              {link.href === "/notifications" && unreadCount > 0 && (
+                <div className="absolute -top-1 -right-2 w-4 h-4 bg-error text-on-error rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-background animate-bounce shadow-sm">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </div>
+              )}
+            </div>
           </Link>
         );
       })}

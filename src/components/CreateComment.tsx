@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 
-export default function CreateComment({ postId, onSuccess }: { postId: string, onSuccess?: () => void }) {
+export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
   const [content, setContent] = useState("");
@@ -65,16 +65,25 @@ export default function CreateComment({ postId, onSuccess }: { postId: string, o
         mediaUrl = gifUrl;
       }
 
-      const { error } = await supabase.from("posts").insert([
+      const { data, error } = await supabase.from("posts").insert([
         {
           reply_to_post_id: postId,
           author_wallet: publicKey.toString(),
           content,
           media_url: mediaUrl,
         }
-      ]);
+      ]).select('id').single();
 
       if (error) throw error;
+      
+      if (postAuthor && publicKey.toString() !== postAuthor) {
+        await supabase.from("notifications").insert([{
+          user_wallet: postAuthor,
+          actor_wallet: publicKey.toString(),
+          type: "reply",
+          post_id: data.id // The new reply post ID
+        }]);
+      }
 
       setContent("");
       setFile(null);
@@ -90,17 +99,42 @@ export default function CreateComment({ postId, onSuccess }: { postId: string, o
     }
   };
 
+  const validateFile = (selectedFile: File) => {
+    if (selectedFile.type.startsWith("video/")) {
+      if (selectedFile.type !== "video/mp4") {
+        toast.error("Only MP4 videos are allowed.");
+        return false;
+      }
+      if (selectedFile.size > 30 * 1024 * 1024) {
+        toast.error("Video size must be less than 30MB.");
+        return false;
+      }
+    } else if (selectedFile.type.startsWith("image/")) {
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast.error("Image size must be less than 10MB.");
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setGifUrl(null);
+      const selectedFile = e.target.files[0];
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+        setGifUrl(null);
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleMediaPickerFile = (pickedFile: File) => {
-    setFile(pickedFile);
-    setGifUrl(null);
-    setIsMediaPickerOpen(false);
+    if (validateFile(pickedFile)) {
+      setFile(pickedFile);
+      setGifUrl(null);
+      setIsMediaPickerOpen(false);
+    }
   };
 
   const handleMediaPickerGif = (url: string) => {
@@ -131,8 +165,12 @@ export default function CreateComment({ postId, onSuccess }: { postId: string, o
           
           {(file || gifUrl) && (
             <div className="relative inline-block mt-sm mb-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={file ? URL.createObjectURL(file) : gifUrl!} alt="Preview" className="max-h-48 rounded-lg border border-outline-variant" />
+              {file && file.type === "video/mp4" ? (
+                <video src={URL.createObjectURL(file)} controls className="max-h-48 rounded-lg border border-outline-variant bg-black" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={file ? URL.createObjectURL(file) : gifUrl!} alt="Preview" className="max-h-48 rounded-lg border border-outline-variant" />
+              )}
               <button 
                 type="button" 
                 onClick={() => { setFile(null); setGifUrl(null); }}
@@ -147,7 +185,7 @@ export default function CreateComment({ postId, onSuccess }: { postId: string, o
             <div className="flex gap-sm text-primary">
               <input 
                 type="file" 
-                accept="image/*,video/*" 
+                accept="image/*,video/mp4" 
                 className="hidden" 
                 ref={fileInputRef}
                 onChange={handleFileChange}

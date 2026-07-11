@@ -199,3 +199,31 @@ CREATE POLICY "Anyone can update comments" ON public.comments
 
 CREATE POLICY "Anyone can delete comments" ON public.comments
     FOR DELETE USING (true);
+
+-- NOTIFICATIONS TABLE
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    actor_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+    amount NUMERIC,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view notifications" ON public.notifications
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert notifications" ON public.notifications
+    FOR INSERT WITH CHECK (true);
+    
+CREATE POLICY "Anyone can update notifications" ON public.notifications
+    FOR UPDATE USING (true);
+
+
+-- ENABLE REALTIME FOR NOTIFICATIONS
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+

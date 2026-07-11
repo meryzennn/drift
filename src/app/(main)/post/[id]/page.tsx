@@ -49,7 +49,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Create Comment Form */}
-      <CreateComment postId={post.id} />
+      <CreateComment postId={post.id} postAuthor={post.authorPublicKey} />
 
       {/* Replies List */}
       <div className="flex flex-col">
@@ -59,7 +59,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
           </div>
         ) : (
           replies.map(reply => (
-            <PostCard key={reply.id} post={reply} />
+            <PostCard key={reply.id} post={reply} hideReplyIndicator={true} />
           ))
         )}
       </div>

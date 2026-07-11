@@ -14,13 +14,15 @@ import { useRouter } from "next/navigation";
 import QuoteModal from "./QuoteModal";
 import { useEffect } from "react";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
+import VideoPlayer from "./VideoPlayer";
 
 interface PostCardProps {
   post: Post;
   isDetail?: boolean;
+  hideReplyIndicator?: boolean;
 }
 
-export default function PostCard({ post, isDetail = false }: PostCardProps) {
+export default function PostCard({ post, isDetail = false, hideReplyIndicator = false }: PostCardProps) {
   const router = useRouter();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
@@ -110,6 +112,16 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
         console.error("Tip saved on chain but failed to record in DB:", dbError);
       }
 
+      if (publicKey.toString() !== post.authorPublicKey) {
+        await supabase.from("notifications").insert([{
+          user_wallet: post.authorPublicKey,
+          actor_wallet: publicKey.toString(),
+          type: "tip",
+          post_id: post.id,
+          amount: amount
+        }]);
+      }
+
       toast.success(`Tip of ${amount} SOL sent successfully!`);
       setIsTipModalOpen(false);
     } catch (error) {
@@ -139,6 +151,15 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
       } else {
         await supabase.from("post_likes").insert([{ post_id: post.id, user_wallet: publicKey.toString() }]);
         await supabase.from("posts").update({ likes: localLikesCount + 1 }).eq("id", post.id);
+        
+        if (publicKey.toString() !== post.authorPublicKey) {
+          await supabase.from("notifications").insert([{
+            user_wallet: post.authorPublicKey,
+            actor_wallet: publicKey.toString(),
+            type: "like",
+            post_id: post.id
+          }]);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -179,6 +200,16 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
       ]);
       
       if (dbError) throw dbError;
+      
+      if (publicKey.toString() !== post.authorPublicKey) {
+        await supabase.from("notifications").insert([{
+          user_wallet: post.authorPublicKey,
+          actor_wallet: publicKey.toString(),
+          type: "repost",
+          post_id: post.id
+        }]);
+      }
+      
       toast.success("Post reposted!");
     } catch (error) {
       console.error("Repost failed:", error);
@@ -291,7 +322,7 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
           </span>
         </div>
       )}
-      {post.replyToPostId && !isDetail && (
+      {post.replyToPostId && !isDetail && !hideReplyIndicator && (
         <div className="flex items-center gap-xs text-on-surface-variant font-label-sm mb-[-8px]">
           <span className="material-symbols-outlined text-[16px]">reply</span>
           <Link href={`/post/${post.replyToPostId}`} className="hover:underline hover:text-primary" onClick={(e) => e.stopPropagation()}>
@@ -397,15 +428,19 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
           
           {post.imageUrl && (
             <div 
-              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
+              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low transition-opacity relative group"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={post.imageUrl} 
-                alt="Post content" 
-                className="w-full max-h-[512px] object-contain bg-black/5"
-              />
+              {post.imageUrl.toLowerCase().endsWith(".mp4") ? (
+                <VideoPlayer url={post.imageUrl} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img 
+                  src={post.imageUrl} 
+                  alt="Post content" 
+                  className="w-full max-h-[512px] object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
+                />
+              )}
             </div>
           )}
           

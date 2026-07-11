@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 export default function NavLinks() {
   const pathname = usePathname();
+  const unreadCount = useUnreadNotifications();
 
   const links = [
     { href: "/", label: "Home", icon: "home" },
@@ -28,12 +30,19 @@ export default function NavLinks() {
                 : "text-on-surface hover:text-primary hover:bg-surface-container-high"
             }`}
           >
-            <span 
-              className="material-symbols-outlined text-xl" 
-              style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-            >
-              {link.icon}
-            </span>
+            <div className="relative">
+              <span 
+                className="material-symbols-outlined text-xl" 
+                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+              >
+                {link.icon}
+              </span>
+              {link.href === "/notifications" && unreadCount > 0 && (
+                <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-error text-on-error rounded-full flex items-center justify-center font-bold text-[10px] border-2 border-background animate-bounce shadow-sm">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </div>
+              )}
+            </div>
             <span className="font-label-md">{link.label}</span>
           </Link>
         );

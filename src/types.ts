@@ -36,3 +36,21 @@ export interface Comment {
     avatarUrl?: string;
   };
 }
+
+export interface AppNotification {
+  id: string;
+  user_wallet: string;
+  actor_wallet: string;
+  type: "like" | "repost" | "reply" | "tip" | "follow";
+  post_id?: string;
+  amount?: number;
+  is_read: boolean;
+  created_at: string;
+  actor?: {
+    username: string;
+    avatar_url: string;
+  };
+  post?: {
+    content: string;
+  };
+}
