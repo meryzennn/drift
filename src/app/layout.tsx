@@ -4,8 +4,6 @@ import "./globals.css";
 import { WalletContextProvider } from "@/components/providers/WalletContextProvider";
 
 import Navbar from "@/components/Navbar";
-import LeftSidebar from "@/components/LeftSidebar";
-import RightSidebar from "@/components/RightSidebar";
 import MobileBottomNav from "@/components/MobileBottomNav";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -26,15 +24,11 @@ export default function RootLayout({
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${inter.className} ${jetbrainsMono.variable} bg-background text-on-background min-h-screen antialiased`}>
+      <body className={`${inter.className} ${jetbrainsMono.variable} bg-background text-on-background min-h-screen antialiased flex flex-col`}>
         <WalletContextProvider>
           <Navbar />
-          <div className="max-w-container-max mx-auto px-gutter flex justify-center gap-lg mt-lg pb-2xl md:pb-0 min-h-screen">
-            <LeftSidebar />
-            <main className="w-full max-w-[42rem] flex-1 flex flex-col gap-md">
-              {children}
-            </main>
-            <RightSidebar />
+          <div className="flex-1 w-full relative">
+            {children}
           </div>
           <MobileBottomNav />
         </WalletContextProvider>

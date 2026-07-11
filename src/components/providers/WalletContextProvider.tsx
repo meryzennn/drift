@@ -16,6 +16,8 @@ interface Props {
 }
 
 
+import AuthProvider from "./AuthProvider";
+
 export const WalletContextProvider: FC<Props> = ({ children }) => {
   // Can be set to 'devnet', 'testnet', or 'mainnet-beta'
   const network = "devnet"; // Using devnet for free testing
@@ -45,7 +47,9 @@ export const WalletContextProvider: FC<Props> = ({ children }) => {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} onError={onError} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );

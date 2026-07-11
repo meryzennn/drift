@@ -6,6 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
 import { useState } from "react";
 import SendTipModal from "./SendTipModal";
+import { supabase } from "@/utils/supabase";
 
 interface PostCardProps {
   post: Post;
@@ -16,6 +17,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
 
   const handleTipClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!publicKey) {
       alert("Please connect your wallet first to send a tip.");
@@ -29,6 +31,20 @@ export default function PostCard({ post }: PostCardProps) {
     
     try {
       await sendTip(publicKey, post.authorPublicKey, amount, sendTransaction);
+      
+      // Save tip to Supabase
+      const { error: dbError } = await supabase.from("tips").insert([
+        {
+          from_wallet: publicKey.toString(),
+          to_wallet: post.authorPublicKey,
+          amount: amount,
+        }
+      ]);
+      
+      if (dbError) {
+        console.error("Tip saved on chain but failed to record in DB:", dbError);
+      }
+
       alert(`Tip of ${amount} SOL sent successfully!`);
       setIsTipModalOpen(false);
     } catch (error) {
@@ -50,9 +66,9 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-sm flex-wrap">
-            <span className="font-label-md text-on-surface">Anonymous User</span>
+            <span className="font-label-md text-on-surface">{post.authorProfile?.displayName || "Anonymous User"}</span>
             <span className="material-symbols-outlined text-[14px] text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-            <span className="font-mono text-[14px] text-on-surface-variant">@{formatAddress(post.authorPublicKey)}</span>
+            <span className="font-mono text-[14px] text-on-surface-variant">@{post.authorProfile?.username || formatAddress(post.authorPublicKey)}</span>
             <span className="text-on-surface-variant text-sm px-xs">•</span>
             <span className="font-body-sm text-on-surface-variant">
               {formatDistanceToNow(new Date(post.createdAt))}

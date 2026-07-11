@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { createPortal } from "react-dom";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 interface SendTipModalProps {
   isOpen: boolean;
@@ -25,8 +27,15 @@ export default function SendTipModal({
   const [customAmount, setCustomAmount] = useState<string>("0.1");
   const modalRef = useRef<HTMLDivElement>(null);
   
-  const { connected } = useWallet();
-  const mockBalance = 2.45; // Mock balance since we don't have getBalance hooked up yet
+  const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
+  const [balance, setBalance] = useState<number>(0);
+
+  useEffect(() => {
+    if (connected && publicKey) {
+      connection.getBalance(publicKey).then((b) => setBalance(b / LAMPORTS_PER_SOL));
+    }
+  }, [connected, publicKey, connection]);
 
   // Handle outside click
   useEffect(() => {
@@ -81,26 +90,27 @@ export default function SendTipModal({
   };
 
   const parsedAmount = parseFloat(customAmount) || 0;
-  const isSufficientBalance = parsedAmount <= mockBalance;
+  const isSufficientBalance = parsedAmount <= balance;
   const isValidAmount = parsedAmount > 0;
   const canSubmit = connected && isValidAmount && isSufficientBalance;
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-md">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-md">
       {/* Dimmed Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
       
       {/* Modal Container */}
       <div 
         ref={modalRef}
-        className="relative z-10 w-full max-w-md bg-[#000000] border border-outline-variant rounded-[12px] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="relative z-10 bg-[#000000] border border-outline-variant rounded-[12px] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        style={{ width: "400px", maxWidth: "90vw" }}
       >
         {/* Header */}
         <div className="p-lg pb-md border-b border-outline-variant/50">
           <h2 className="font-headline-md text-headline-md text-on-surface mb-xs">Send a Tip</h2>
           <div className="flex items-center gap-sm mt-md">
             <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center font-bold text-primary">
-              {recipientAddress.slice(0, 2)}
+              {recipientAddress ? recipientAddress.slice(0, 2) : "?"}
             </div>
             <span className="font-body-sm text-body-sm text-on-surface-variant">
               to <span className="font-label-md text-label-md text-on-surface">@{formatAddress(recipientAddress)}</span>
@@ -121,7 +131,7 @@ export default function SendTipModal({
                 return (
                   <button
                     key={amount}
-                    onClick={() => handlePresetClick(amount)}
+                    onClick={(e) => { e.preventDefault(); handlePresetClick(amount); }}
                     className={`flex flex-col items-center justify-center p-sm rounded-lg transition-colors group cursor-pointer ${
                       isSelected 
                         ? "border border-primary-container bg-surface-container-low ring-1 ring-primary-container" 
@@ -154,7 +164,7 @@ export default function SendTipModal({
                 onChange={handleCustomAmountChange}
               />
               <button 
-                onClick={() => handlePresetClick(mockBalance)}
+                onClick={(e) => { e.preventDefault(); handlePresetClick(balance); }}
                 className="absolute right-0 font-label-md text-label-md text-primary hover:text-primary-container transition-colors cursor-pointer bg-transparent border-none"
               >
                 MAX
@@ -165,7 +175,7 @@ export default function SendTipModal({
                 ≈ ${(parsedAmount * SOL_TO_USD).toFixed(2)} USD
               </span>
               <span className={`font-body-sm text-body-sm ${isSufficientBalance ? "text-on-surface-variant" : "text-error"}`}>
-                Bal: {mockBalance.toFixed(2)} SOL
+                Bal: {balance.toFixed(2)} SOL
               </span>
             </div>
           </div>
@@ -174,13 +184,13 @@ export default function SendTipModal({
         {/* Footer Actions */}
         <div className="p-lg pt-md flex items-center justify-between gap-md border-t border-outline-variant/50 bg-surface-container-lowest">
           <button 
-            onClick={onClose}
+            onClick={(e) => { e.preventDefault(); onClose(); }}
             className="px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer bg-transparent border-none"
           >
             Cancel
           </button>
           <button 
-            onClick={handleConfirm}
+            onClick={(e) => { e.preventDefault(); handleConfirm(); }}
             disabled={!canSubmit}
             className="flex-1 flex justify-center items-center gap-sm bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-label-md text-label-md py-sm px-lg rounded-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 border-none cursor-pointer"
           >
@@ -193,4 +203,8 @@ export default function SendTipModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" 
+    ? createPortal(modalContent, document.body)
+    : null;
 }

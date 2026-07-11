@@ -5,4 +5,9 @@ export interface Post {
   imageUrl?: string;
   createdAt: string;
   likes: number;
+  authorProfile?: {
+    username: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
 }
