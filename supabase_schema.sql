@@ -21,6 +21,29 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- REPOSTS TABLE
 CREATE TABLE IF NOT EXISTS public.reposts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- USERS TABLE
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID DEFAULT uuid_generate_v4() UNIQUE,
+    wallet_address TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    display_name TEXT,
+    avatar_url TEXT,
+    banner_url TEXT,
+    bio TEXT,
+    x_link TEXT,
+    telegram_link TEXT,
+    instagram_link TEXT,
+    custom_link TEXT,
+    has_set_username_once BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- REPOSTS TABLE
+CREATE TABLE IF NOT EXISTS public.reposts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
     post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -34,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.posts (
     content TEXT NOT NULL,
     media_url TEXT,
     likes INTEGER DEFAULT 0,
+    quote_post_id UUID REFERENCES public.posts(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -131,6 +155,26 @@ CREATE POLICY "Anyone can update posts" ON public.posts
 
 CREATE POLICY "Anyone can delete posts" ON public.posts
     FOR DELETE USING (true);
+
+-- POST LIKES TABLE
+CREATE TABLE IF NOT EXISTS public.post_likes (
+    user_wallet TEXT NOT NULL REFERENCES public.users(wallet_address) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_wallet, post_id)
+);
+
+ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Likes are viewable by everyone" ON public.post_likes
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can insert likes" ON public.post_likes
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can delete own likes" ON public.post_likes
+    FOR DELETE USING (true);
+
 -- COMMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.comments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

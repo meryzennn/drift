@@ -5,6 +5,7 @@ import CreateComment from "@/components/CreateComment";
 import BackButton from "@/components/BackButton";
 import { notFound } from "next/navigation";
 import { Post, Comment } from "@/types";
+import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 
 export const revalidate = 0;
 
@@ -14,19 +15,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   // Fetch Post
   const { data: postData, error: postError } = await supabase
     .from("posts")
-    .select(`
-      id,
-      author_wallet,
-      content,
-      media_url,
-      likes,
-      created_at,
-      users (
-        username,
-        display_name,
-        avatar_url
-      )
-    `)
+    .select(POST_SELECT_QUERY)
     .eq("id", id)
     .single();
 
@@ -34,19 +23,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
-  const post: Post = {
-    id: postData.id,
-    authorPublicKey: postData.author_wallet,
-    content: postData.content,
-    imageUrl: postData.media_url,
-    likes: postData.likes,
-    createdAt: postData.created_at,
-    authorProfile: postData.users ? {
-      username: (postData.users as any).username,
-      displayName: (postData.users as any).display_name,
-      avatarUrl: (postData.users as any).avatar_url,
-    } : undefined
-  };
+  const post: Post = mapPostData(postData);
 
   // Fetch Comments
   const { data: commentsData } = await supabase

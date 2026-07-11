@@ -11,6 +11,11 @@ export interface Post {
     avatarUrl?: string;
   };
   commentsCount?: number;
+  hasLiked?: boolean;
+  hasReposted?: boolean;
+  repostsCount?: number;
+  quotePostId?: string;
+  quotePost?: Post;
 }
 
 export interface Comment {

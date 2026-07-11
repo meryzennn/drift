@@ -11,6 +11,8 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import QuoteModal from "./QuoteModal";
+import { useEffect } from "react";
 
 interface PostCardProps {
   post: Post;
@@ -24,6 +26,8 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isRepostMenuOpen, setIsRepostMenuOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [displayContent, setDisplayContent] = useState(post.content);
@@ -31,7 +35,29 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
+  const [isLikedByMe, setIsLikedByMe] = useState(false);
+  const [isRepostedByMe, setIsRepostedByMe] = useState(false);
+  const [localLikesCount, setLocalLikesCount] = useState(post.likes || 0);
+  const [localRepostsCount, setLocalRepostsCount] = useState(post.repostsCount || 0);
+
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
+
+  useEffect(() => {
+    if (publicKey) {
+      const checkInteractions = async () => {
+        const [{ data: likeData }, { data: repostData }] = await Promise.all([
+          supabase.from("post_likes").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
+          supabase.from("reposts").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
+        ]);
+        if (likeData) setIsLikedByMe(true);
+        if (repostData) setIsRepostedByMe(true);
+      };
+      checkInteractions();
+    } else {
+      setIsLikedByMe(false);
+      setIsRepostedByMe(false);
+    }
+  }, [publicKey, post.id]);
 
   const handleTipClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -75,6 +101,31 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!publicKey) return toast.error("Connect wallet to like.");
+
+    const wasLiked = isLikedByMe;
+    setIsLikedByMe(!wasLiked);
+    setLocalLikesCount((prev) => (wasLiked ? Math.max(0, prev - 1) : prev + 1));
+
+    try {
+      if (wasLiked) {
+        await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_wallet", publicKey.toString());
+        await supabase.from("posts").update({ likes: Math.max(0, localLikesCount - 1) }).eq("id", post.id);
+      } else {
+        await supabase.from("post_likes").insert([{ post_id: post.id, user_wallet: publicKey.toString() }]);
+        await supabase.from("posts").update({ likes: localLikesCount + 1 }).eq("id", post.id);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Action failed");
+      setIsLikedByMe(wasLiked);
+      setLocalLikesCount((prev) => (wasLiked ? prev + 1 : Math.max(0, prev - 1)));
+    }
+  };
+
   const handleRepostClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -83,6 +134,20 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
       return;
     }
     
+    setIsRepostMenuOpen(false);
+
+    if (isRepostedByMe) {
+      // Undo repost
+      setIsRepostedByMe(false);
+      setLocalRepostsCount((prev) => Math.max(0, prev - 1));
+      await supabase.from("reposts").delete().eq("post_id", post.id).eq("user_wallet", publicKey.toString());
+      return;
+    }
+
+    // Do repost
+    setIsRepostedByMe(true);
+    setLocalRepostsCount((prev) => prev + 1);
+
     try {
       const { error: dbError } = await supabase.from("reposts").insert([
         {
@@ -91,19 +156,12 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
         }
       ]);
       
-      if (dbError) {
-        if (dbError.code === '23505') { // Unique constraint violation
-          toast.error("You have already reposted this!");
-        } else {
-          throw dbError;
-        }
-        return;
-      }
-      
-      toast.success("Post reposted successfully!");
+      if (dbError) throw dbError;
+      toast.success("Post reposted!");
     } catch (error) {
       console.error("Repost failed:", error);
-      toast.error("Failed to repost.");
+      setIsRepostedByMe(false);
+      setLocalRepostsCount((prev) => Math.max(0, prev - 1));
     }
   };
 
@@ -176,6 +234,7 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
   const handleCardClick = () => {
     if (isDetail) return;
     setIsMenuOpen(false);
+    setIsRepostMenuOpen(false);
     router.push(`/post/${post.id}`);
   };
 
@@ -220,9 +279,9 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             </span>
 
             {isOwner && (
-              <div className="ml-auto relative">
+              <div className="ml-auto relative flex items-center">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+                  onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); setIsRepostMenuOpen(false); }}
                   className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
                 >
                   <span className="material-symbols-outlined text-[20px]">more_vert</span>
@@ -294,23 +353,82 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
             </div>
           )}
           
+          {post.quotePost && (
+            <div 
+              className="mt-md border border-outline-variant rounded-xl p-md bg-surface-container hover:bg-surface-container-highest transition-colors cursor-pointer flex flex-col gap-sm"
+              onClick={(e) => { e.stopPropagation(); router.push(`/post/${post.quotePost!.id}`); }}
+            >
+              <div className="flex items-center gap-sm">
+                <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                  {post.quotePost.authorProfile?.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={post.quotePost.authorProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    post.quotePost.authorPublicKey.slice(0, 2)
+                  )}
+                </div>
+                <span className="font-label-md text-on-surface">
+                  {post.quotePost.authorProfile?.displayName || "Anonymous User"}
+                </span>
+                <span className="font-mono text-[12px] text-on-surface-variant">
+                  @{post.quotePost.authorProfile?.username || formatAddress(post.quotePost.authorPublicKey)}
+                </span>
+                <span className="text-on-surface-variant text-sm px-xs">•</span>
+                <span className="font-body-sm text-on-surface-variant" suppressHydrationWarning>
+                  {formatDistanceToNow(new Date(post.quotePost.createdAt))}
+                </span>
+              </div>
+              <div className="font-body-sm text-on-surface line-clamp-3">
+                {post.quotePost.content}
+              </div>
+              {post.quotePost.imageUrl && (
+                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[200px] mt-xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={post.quotePost.imageUrl} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="mt-md flex justify-between items-center text-on-surface-variant max-w-[28rem]">
             <button className="flex items-center gap-xs hover:text-primary transition-colors group">
               <span className="material-symbols-outlined text-[20px] group-hover:bg-primary/10 rounded-full p-xs">chat_bubble</span>
               <span className="font-body-sm">{post.commentsCount || 0}</span>
             </button>
             
-            <button 
-              onClick={handleRepostClick}
-              className="flex items-center gap-xs hover:text-secondary transition-colors group"
-            >
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-secondary/10 rounded-full p-xs">repeat</span>
-              <span className="font-body-sm">0</span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsRepostMenuOpen(!isRepostMenuOpen); setIsMenuOpen(false); }}
+                className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-secondary" : "hover:text-secondary"}`}
+              >
+                <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-secondary/10 ${isRepostedByMe ? "bg-secondary/10" : ""}`}>repeat</span>
+                <span className="font-body-sm">{localRepostsCount}</span>
+              </button>
+              
+              {isRepostMenuOpen && (
+                <div className="absolute left-0 top-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
+                  <button 
+                    onClick={handleRepostClick}
+                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">repeat</span> {isRepostedByMe ? "Undo Repost" : "Repost"}
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsQuoteModalOpen(true); setIsRepostMenuOpen(false); }}
+                    className="w-full text-left px-md py-3 flex items-center gap-3 hover:bg-surface-container-highest text-on-surface font-label-md transition-colors border-t border-outline-variant/50"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">edit_note</span> Quote
+                  </button>
+                </div>
+              )}
+            </div>
             
-            <button className="flex items-center gap-xs hover:text-error transition-colors group">
-              <span className="material-symbols-outlined text-[20px] group-hover:bg-error/10 rounded-full p-xs">favorite</span>
-              <span className="font-body-sm">{post.likes}</span>
+            <button 
+              onClick={handleLikeToggle}
+              className={`flex items-center gap-xs transition-colors group ${isLikedByMe ? "text-error" : "hover:text-error"}`}
+            >
+              <span className={`material-symbols-outlined text-[20px] rounded-full p-xs group-hover:bg-error/10 ${isLikedByMe ? "bg-error/10" : ""}`} style={{ fontVariationSettings: isLikedByMe ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+              <span className="font-body-sm">{localLikesCount}</span>
             </button>
             
             <button 
@@ -331,6 +449,12 @@ export default function PostCard({ post, isDetail = false }: PostCardProps) {
         recipientName={post.authorProfile?.displayName || "Anonymous User"}
         recipientAvatar={post.authorProfile?.avatarUrl}
         onConfirm={confirmTip}
+      />
+
+      <QuoteModal 
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        quotedPost={post}
       />
 
       {isConfirmDeleteOpen && typeof document !== "undefined" && createPortal(

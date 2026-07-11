@@ -1,6 +1,7 @@
 import { Post } from "@/types";
 import Feed from "@/components/Feed";
 import { supabase } from "@/utils/supabase";
+import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 
 export const revalidate = 0;
 
@@ -8,37 +9,11 @@ export default async function ExplorePage() {
   // Fetch posts ordered by likes to represent "Trending"
   const { data: postsData } = await supabase
     .from("posts")
-    .select(`
-      id,
-      content,
-      media_url,
-      created_at,
-      likes,
-      author_wallet,
-      users (
-        username,
-        display_name,
-        avatar_url
-      ),
-      comments ( count )
-    `)
+    .select(POST_SELECT_QUERY)
     .order("likes", { ascending: false })
     .limit(20);
 
-  const posts: Post[] = (postsData || []).map((p: any) => ({
-    id: p.id,
-    authorPublicKey: p.author_wallet,
-    content: p.content,
-    imageUrl: p.media_url,
-    createdAt: p.created_at,
-    likes: p.likes,
-    authorProfile: p.users ? {
-      username: p.users.username,
-      displayName: p.users.display_name,
-      avatarUrl: p.users.avatar_url,
-    } : undefined,
-    commentsCount: p.comments?.[0]?.count ?? 0,
-  }));
+  const posts: Post[] = (postsData || []).map(mapPostData);
 
   return (
     <>

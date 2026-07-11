@@ -9,6 +9,7 @@ import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import FollowsModal from "@/components/FollowsModal";
+import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 
 export default function DynamicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -60,34 +61,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       // Fetch user posts
       const { data: postsData } = await supabase
         .from("posts")
-        .select(`
-          id,
-          content,
-          media_url,
-          created_at,
-          likes,
-          author_wallet,
-          comments ( count )
-        `)
+        .select(POST_SELECT_QUERY)
         .eq("author_wallet", wallet)
         .order("created_at", { ascending: false });
 
       if (postsData) {
-        const formattedPosts: Post[] = postsData.map((p: any) => ({
-          id: p.id,
-          authorPublicKey: p.author_wallet,
-          content: p.content,
-          imageUrl: p.media_url,
-          createdAt: p.created_at,
-          likes: p.likes,
-          authorProfile: {
-            username: userData.username,
-            displayName: userData.display_name,
-            avatarUrl: userData.avatar_url,
-          },
-          commentsCount: p.comments?.[0]?.count ?? 0,
-        }));
-        setPosts(formattedPosts);
+        setPosts(postsData.map(mapPostData));
       }
 
       // Fetch user reposts
@@ -96,18 +75,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         .select(`
           created_at,
           posts (
-            id,
-            content,
-            media_url,
-            created_at,
-            likes,
-            author_wallet,
-            users (
-              username,
-              display_name,
-              avatar_url
-            ),
-            comments ( count )
+            ${POST_SELECT_QUERY}
           )
         `)
         .eq("user_wallet", wallet)
@@ -116,24 +84,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       if (repostsData) {
         const formattedReposts: Post[] = repostsData
           .filter((r: any) => r.posts)
-          .map((r: any) => {
-            const p = r.posts;
-            const authorData = p.users || {};
-            return {
-              id: p.id,
-              authorPublicKey: p.author_wallet,
-              content: p.content,
-              imageUrl: p.media_url,
-              createdAt: p.created_at,
-              likes: p.likes,
-              authorProfile: {
-                username: authorData.username,
-                displayName: authorData.display_name,
-                avatarUrl: authorData.avatar_url,
-              },
-              commentsCount: p.comments?.[0]?.count ?? 0,
-            };
-          });
+          .map((r: any) => mapPostData(r.posts));
         setReposts(formattedReposts);
       }
 
