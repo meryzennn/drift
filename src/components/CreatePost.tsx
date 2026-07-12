@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import imageCompression from "browser-image-compression";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
 import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
+import { parseEmbeds } from "@/utils/embedParser";
+import SocialEmbed from "./SocialEmbed";
 
 const PLACEHOLDERS = [
   "What's happening in Web3?",
@@ -25,7 +27,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
   const [content, setContent] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,21 +39,23 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const { embeds } = useMemo(() => parseEmbeds(content), [content]);
+
   useEffect(() => {
     setPlaceholder(PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)]);
   }, []);
 
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+    if (files.length > 0) {
+      // Just preview the first one for simplicity, or we could map them.
+      // Actually we will map them in the render phase, no need for previewUrl state
+      return;
     } else if (gifUrl) {
       setPreviewUrl(gifUrl);
     } else {
       setPreviewUrl(null);
     }
-  }, [file, gifUrl]);
+  }, [files, gifUrl]);
 
   const { suggestions, showDropdown, handleSelect } = useMentionAutocomplete(
     content,
@@ -86,32 +90,29 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!content.trim() && !file && !gifUrl) || !publicKey) return;
+    if ((!content.trim() && files.length === 0 && !gifUrl) || !publicKey) return;
     
     setLoading(true);
     let mediaUrl = null;
 
     try {
-      // 1. Upload image if exists
-      if (file) {
-        let fileToUpload: File | Blob = file;
-        
-        // Compress if it's an image
-        if (file.type.startsWith("image/")) {
-          try {
-            const options = {
-              maxSizeMB: 1,
-              maxWidthOrHeight: 1920,
-              useWebWorker: true,
-            };
-            fileToUpload = await imageCompression(file, options);
-          } catch (error) {
-            console.error("Image compression error:", error);
-            throw new Error("Failed to compress image. Upload aborted.");
+      if (files.length > 0) {
+        const uploadPromises = files.map(async (file) => {
+          let fileToUpload: File | Blob = file;
+          
+          if (file.type.startsWith("image/")) {
+            try {
+              fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+            } catch (error) {
+              console.error("Image compression error:", error);
+              throw new Error("Failed to compress image. Upload aborted.");
+            }
           }
-        }
+          return uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
+        });
 
-        mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
+        const urls = await Promise.all(uploadPromises);
+        mediaUrl = urls.join(",");
       } else if (gifUrl) {
         mediaUrl = gifUrl;
       }
@@ -144,7 +145,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
 
       // 3. Reset and Refresh
       setContent("");
-      setFile(null);
+      setFiles([]);
       setGifUrl(null);
       toast.success("Post created successfully!");
       router.refresh(); // Reload server components (Feed)
@@ -182,30 +183,39 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      const isValid = await validateFile(selectedFile);
-      if (isValid) {
-        setFile(selectedFile);
-        setGifUrl(null); // Clear GIF if file is picked
-      }
-      // Reset input so the same file can be selected again
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+    
+    // Check limits
+    const isVideoArray = selectedFiles.some(f => f.type.startsWith("video/"));
+    const maxCount = isVideoArray ? 3 : 5;
+    if (selectedFiles.length > maxCount) {
+      toast.error(`Maximum ${maxCount} files allowed.`);
+      return;
     }
+
+    const validFiles: File[] = [];
+    for (const f of selectedFiles) {
+      const isValid = await validateFile(f);
+      if (isValid) validFiles.push(f);
+    }
+    
+    if (validFiles.length > 0) {
+      setFiles(validFiles);
+      setGifUrl(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleMediaPickerFile = async (pickedFile: File) => {
-    const isValid = await validateFile(pickedFile);
-    if (isValid) {
-      setFile(pickedFile);
-      setGifUrl(null);
-      setIsMediaPickerOpen(false);
-    }
+  const handleMediaPickerFile = (pickedFiles: File[]) => {
+    setFiles(pickedFiles);
+    setGifUrl(null);
+    setIsMediaPickerOpen(false);
   };
 
   const handleMediaPickerGif = (url: string) => {
     setGifUrl(url);
-    setFile(null);
+    setFiles([]);
     setIsMediaPickerOpen(false);
   };
 
@@ -225,7 +235,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
             toast.error("Image must be less than 10MB");
             return;
           }
-          setFile(pastedFile);
+          setFiles([...files, pastedFile]);
           setGifUrl(null);
           e.preventDefault();
           break;
@@ -237,7 +247,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if ((content.trim() || file || gifUrl) && !loading && content.length <= 255) {
+      if ((content.trim() || files.length > 0 || gifUrl) && !loading && content.length <= 255) {
         handleSubmit(e as unknown as React.FormEvent);
       }
     }
@@ -303,21 +313,55 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
             </div>
           )}
           
-          {previewUrl && (
+          {/* Media Previews */}
+          {files.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-sm mb-xs relative">
+              {files.map((f, i) => {
+                const url = URL.createObjectURL(f);
+                return (
+                  <div key={i} className="relative shrink-0">
+                    {f.type === "video/mp4" ? (
+                      <video src={url} className="h-[120px] rounded-lg border border-outline-variant bg-black object-contain" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt="Preview" className="h-[120px] rounded-lg border border-outline-variant object-cover" />
+                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => setFiles(files.filter((_, index) => index !== i))}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">close</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {gifUrl && (
             <div className="relative inline-block mt-sm mb-xs max-w-full w-fit">
-              {file && file.type === "video/mp4" ? (
-                <video src={previewUrl} controls className="max-h-[300px] max-w-full object-contain rounded-lg border border-outline-variant bg-black" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewUrl} alt="Preview" className="max-h-[300px] max-w-full object-contain rounded-lg border border-outline-variant" />
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={gifUrl} alt="Preview" className="max-h-[300px] max-w-full object-contain rounded-lg border border-outline-variant" />
               <button 
                 type="button" 
-                onClick={() => { setFile(null); setGifUrl(null); }}
+                onClick={() => setGifUrl(null)}
                 className="absolute top-xs right-xs bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
               >
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
+            </div>
+          )}
+
+          {embeds.length > 0 && (
+            <div className="flex flex-col gap-2 mt-sm mb-xs">
+              {embeds.map((embed, i) => (
+                <div key={i} className="relative">
+                  <SocialEmbed embed={embed} />
+                  {/* Overlay to prevent iframe capturing pointer events while typing/scrolling */}
+                  <div className="absolute inset-0 bg-transparent z-10" />
+                </div>
+              ))}
             </div>
           )}
 
@@ -355,7 +399,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
                 </span>
                 <button
                   type="submit"
-                  disabled={(!content.trim() && !file && !gifUrl) || loading || content.length > 255}
+                  disabled={(!content.trim() && files.length === 0 && !gifUrl) || loading || content.length > 255}
                   className="bg-primary-container text-on-primary-container px-lg py-xs rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50"
                 >
                   {loading ? "Posting..." : "Post"}
@@ -374,7 +418,8 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
         <MediaPickerModal
           type="post"
           maxMB={10}
-          onFile={handleMediaPickerFile}
+          onFiles={handleMediaPickerFile}
+          allowMultiple={true}
           onGif={handleMediaPickerGif}
           onClose={() => setIsMediaPickerOpen(false)}
           defaultTab="gif"

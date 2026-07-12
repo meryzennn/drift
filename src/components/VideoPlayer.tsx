@@ -18,6 +18,7 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [wasManuallyPaused, setWasManuallyPaused] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   let hideControlsTimeout: NodeJS.Timeout;
 
@@ -115,6 +116,11 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
   }, []);
 
   // Intersection Observer to pause when scrolled out of view
+  const wasManuallyPausedRef = useRef(wasManuallyPaused);
+  useEffect(() => {
+    wasManuallyPausedRef.current = wasManuallyPaused;
+  }, [wasManuallyPaused]);
+
   useEffect(() => {
     const options = {
       root: null,
@@ -128,19 +134,18 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
         
         if (entry.isIntersecting) {
           // Play only if it wasn't manually paused by the user
-          if (!wasManuallyPaused) {
-            videoRef.current.play().then(() => {
-              setIsPlaying(true);
-            }).catch(() => {
-              // Auto-play might be blocked by browser policies if unmuted, 
-              // but it's muted by default so it should work.
-            });
+          if (!wasManuallyPausedRef.current) {
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(() => {
+                // Ignore autoplay block errors
+              });
+            }
           }
         } else {
           // Pause when scrolling out of view
-          if (isPlaying) {
+          if (!videoRef.current.paused) {
             videoRef.current.pause();
-            setIsPlaying(false);
           }
         }
       });
@@ -155,12 +160,12 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
         observer.unobserve(containerRef.current);
       }
     };
-  }, [isPlaying, wasManuallyPaused]);
+  }, []);
 
   return (
     <div 
       ref={containerRef}
-      className="relative w-full max-h-[512px] bg-black rounded-xl overflow-hidden group flex items-center justify-center cursor-pointer"
+      className={`relative w-full ${isFullscreen ? 'h-screen max-h-screen' : 'max-h-[512px]'} bg-black rounded-xl overflow-hidden group flex items-center justify-center cursor-pointer`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={togglePlay}
@@ -168,10 +173,18 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
       <video
         ref={videoRef}
         src={url}
-        className="w-full h-full object-contain max-h-[512px]"
+        className={`w-full h-full object-contain ${isFullscreen ? 'max-h-screen' : 'max-h-[512px]'}`}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
+        onWaiting={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onPlaying={() => {
+          setIsLoading(false);
+          setIsPlaying(true);
+        }}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -181,8 +194,18 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
         loop
       />
 
+      {/* Loading Spinner */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 transition-opacity">
+          <div className="flex flex-col items-center gap-sm">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="font-label-sm text-white/80">Loading video...</span>
+          </div>
+        </div>
+      )}
+
       {/* Large Center Play Button when paused */}
-      {!isPlaying && (
+      {!isPlaying && !isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-opacity">
           <div className="w-16 h-16 rounded-full bg-primary/90 text-on-primary flex items-center justify-center shadow-lg backdrop-blur-sm hover:scale-110 transition-transform">
             <span className="material-symbols-outlined text-[32px] ml-1">play_arrow</span>
