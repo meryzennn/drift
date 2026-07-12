@@ -33,8 +33,8 @@ export async function GET(request: Request) {
           },
         },
       }),
-      // Revalidate every 5 minutes to avoid hitting rate limits too fast
-      next: { revalidate: 300 }
+      // Do not cache to avoid 2MB limit errors on large wallets
+      cache: 'no-store'
     });
 
     if (!response.ok) {
