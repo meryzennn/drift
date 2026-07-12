@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
+import { uploadFileToR2 } from "@/utils/upload";
 
 const PLACEHOLDERS = [
   "What's happening in Web3?",
@@ -110,17 +111,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
           }
         }
 
-        const formData = new FormData();
-        formData.append("file", fileToUpload);
-
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error("Failed to upload image");
-        const data = await res.json();
-        mediaUrl = data.url;
+        mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
       } else if (gifUrl) {
         mediaUrl = gifUrl;
       }

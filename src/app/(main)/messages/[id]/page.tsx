@@ -9,6 +9,7 @@ import { encryptMessage, decryptMessage } from "@/utils/encryption";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import MediaPickerModal from "@/components/MediaPickerModal";
+import { uploadFileToR2 } from "@/utils/upload";
 import ImageLightbox from "@/components/ImageLightbox";
 import SendTipModal from "@/components/SendTipModal";
 import { getFormattedDate } from "@/utils/dateUtils";
@@ -368,14 +369,9 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
         toast.loading("Uploading pasted image...");
         try {
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("type", "post");
-          const res = await fetch("/api/upload", { method: "POST", body: formData });
-          if (!res.ok) throw new Error("Upload failed");
-          const data = await res.json();
+          const mediaUrl = await uploadFileToR2(file, file.name, file.type);
           toast.dismiss();
-          handleSend("", data.url);
+          handleSend("", mediaUrl);
         } catch (err) {
           toast.dismiss();
           toast.error("Failed to upload pasted image");
@@ -528,13 +524,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                 console.error("Compression error:", e);
               }
             }
-            const formData = new FormData();
-            formData.append("file", fileToUpload);
-            formData.append("type", "post");
-            const res = await fetch("/api/upload", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("Upload failed");
-            const data = await res.json();
-            finalMediaUrl = data.url;
+            finalMediaUrl = await uploadFileToR2(fileToUpload, mediaFile.name, fileToUpload.type || mediaFile.type);
             toast.dismiss("tip-media");
           } catch (err) {
             toast.dismiss("tip-media");
@@ -601,8 +591,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     >
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
-        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
-          <span className="material-symbols-outlined">arrow_back</span>
+        <button 
+          onClick={() => router.push("/messages")} 
+          className="group w-9 h-9 flex items-center justify-center rounded-full border border-outline-variant hover:border-primary hover:bg-primary/10 transition-all duration-200 active:scale-90 shrink-0"
+          title="Go Back"
+        >
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors duration-200 group-hover:-translate-x-0.5 inline-block transition-transform">
+            arrow_back
+          </span>
         </button>
         {otherUser ? (
           <Link href={`/profile/${otherUser.username}`} className="flex items-center gap-3">
@@ -926,14 +922,9 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                 console.error("Compression error:", e);
               }
             }
-            const formData = new FormData();
-            formData.append("file", fileToUpload);
-            formData.append("type", "post");
-            const res = await fetch("/api/upload", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("Upload failed");
-            const data = await res.json();
+            const mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
             toast.dismiss();
-            handleSend("", data.url);
+            handleSend("", mediaUrl);
           } catch (err) {
             toast.dismiss();
             toast.error("Failed to upload media");

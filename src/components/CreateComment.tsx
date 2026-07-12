@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
+import { uploadFileToR2 } from "@/utils/upload";
 import imageCompression from "browser-image-compression";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
@@ -74,18 +75,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             console.error("Image compression error:", error);
           }
         }
-
-        const formData = new FormData();
-        formData.append("file", fileToUpload);
-
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error("Failed to upload image");
-        const data = await res.json();
-        mediaUrl = data.url;
+        mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
       } else if (gifUrl) {
         mediaUrl = gifUrl;
       }

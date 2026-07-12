@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 
 export const revalidate = 0;
 
@@ -48,7 +49,10 @@ export default async function LeaderboardPage() {
     <div className="bg-background min-h-screen pb-xl">
       <div className="sticky top-16 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
         <div className="py-md flex justify-between items-center">
-          <h2 className="font-headline-md text-headline-md font-bold text-on-surface">Top Tippers</h2>
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <h2 className="font-headline-md text-headline-md font-bold text-on-surface">Top Tippers</h2>
+          </div>
         </div>
       </div>
 
