@@ -238,7 +238,11 @@ export default function Feed({ posts }: FeedProps) {
   }, []);
 
   const Footer = useCallback(() => {
-    if (isLoadingMore) return <PostSkeleton />;
+    if (isLoadingMore) return (
+      <div className="flex justify-center items-center py-xl">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
     if (!hasMore && feedItems.length > 0) {
       return (
         <div className="text-center py-xl border-t border-outline-variant mt-md">

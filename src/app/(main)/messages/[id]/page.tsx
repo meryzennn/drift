@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 import MediaPickerModal from "@/components/MediaPickerModal";
 import ImageLightbox from "@/components/ImageLightbox";
 import SendTipModal from "@/components/SendTipModal";
-import { getFormattedDate } from "@/utils/formatters";
+import { getFormattedDate } from "@/utils/dateUtils";
 import imageCompression from "browser-image-compression";
 import { sendTip } from "@/utils/solanaUtils";
 
