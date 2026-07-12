@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 interface Tipper {
   actor_wallet: string;
   amount: number;
+  amount_usd?: number;
   username?: string;
   avatar_url?: string;
 }
@@ -23,12 +24,33 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
   const [tippers, setTippers] = useState<Tipper[]>([]);
   const [totalSol, setTotalSol] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fallbackSolPrice, setFallbackSolPrice] = useState<number>(145);
   const router = useRouter();
 
   useEffect(() => {
     if (!isOpen) return;
     document.body.style.overflow = "hidden";
     fetchTippers();
+    
+    // Fetch live SOL price as fallback for older tips that have amount_usd = 0
+    fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT")
+      .then(res => res.json())
+      .then(data => {
+        if (data?.price) {
+          setFallbackSolPrice(parseFloat(data.price));
+        } else {
+          throw new Error("Invalid Binance response");
+        }
+      })
+      .catch(() => {
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd")
+          .then(res => res.json())
+          .then(data => {
+            if (data?.solana?.usd) setFallbackSolPrice(parseFloat(data.solana.usd));
+          })
+          .catch(() => {});
+      });
+      
     return () => { document.body.style.overflow = "unset"; };
   }, [isOpen, postId]);
 
@@ -37,7 +59,7 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
     try {
       const { data } = await supabase
         .from("notifications")
-        .select("actor_wallet, amount, actor:users!notifications_actor_wallet_fkey(username, avatar_url)")
+        .select("actor_wallet, amount, amount_usd, actor:users!notifications_actor_wallet_fkey(username, avatar_url)")
         .eq("user_wallet", postAuthorWallet)
         .eq("type", "tip")
         .eq("post_id", postId)
@@ -47,6 +69,7 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
         const mapped: Tipper[] = data.map((t: any) => ({
           actor_wallet: t.actor_wallet,
           amount: t.amount || 0,
+          amount_usd: t.amount_usd || 0,
           username: t.actor?.username,
           avatar_url: t.actor?.avatar_url,
         }));
@@ -98,11 +121,11 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
           </button>
         </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto max-h-[60vh]">
+        {/* List */}
+        <div className="flex-1 overflow-y-auto max-h-[60vh] custom-scrollbar">
           {loading ? (
-            <div className="flex justify-center py-xl">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="flex justify-center items-center py-xl">
+              <span className="material-symbols-outlined animate-spin text-[32px] text-primary">sync</span>
             </div>
           ) : tippers.length === 0 ? (
             <div className="py-xl text-center">
@@ -143,9 +166,20 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
                   </div>
 
                   {/* Amount */}
-                  <div className="flex items-center gap-xs text-primary shrink-0">
-                    <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                    <span className="font-bold font-label-md">{t.amount} SOL</span>
+                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+                    <div className="flex items-center gap-xs text-primary">
+                      <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                      <span className="font-bold font-label-md">{t.amount} SOL</span>
+                    </div>
+                    {t.amount_usd && t.amount_usd > 0 ? (
+                      <span className="text-on-surface-variant text-[11px] font-mono">
+                        ${Number(t.amount_usd).toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="text-on-surface-variant text-[11px] font-mono">
+                        ${Number(t.amount * fallbackSolPrice).toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

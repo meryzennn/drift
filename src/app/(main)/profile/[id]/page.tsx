@@ -29,6 +29,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const [mentions, setMentions] = useState<Post[]>([]);
   const [tippedItems, setTippedItems] = useState<{ type: "post" | "profile"; post?: Post; recipient?: any; wallet?: string; amount: number; createdAt: string; id: string }[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
+  const [totalTippedUsd, setTotalTippedUsd] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts" | "mentions">("posts");
   const [notFound, setNotFound] = useState(false);
@@ -54,13 +55,20 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       try {
         const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
         const data = await res.json();
-        if (data?.price) setSolPrice(parseFloat(data.price));
+        if (data?.price) {
+          setSolPrice(parseFloat(data.price));
+        } else {
+          throw new Error("Invalid Binance response");
+        }
       } catch {
         try {
-          const res2 = await fetch("https://price.jup.ag/v6/price?ids=SOL");
+          const res2 = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
           const data2 = await res2.json();
-          const price = data2?.data?.SOL?.price;
-          if (price) setSolPrice(price);
+          if (data2?.solana?.usd) {
+            setSolPrice(parseFloat(data2.solana.usd));
+          } else {
+            throw new Error("Invalid CoinGecko response");
+          }
         } catch {
           setSolPrice(null);
         }
@@ -189,6 +197,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         .from("tips")
         .select(`
           amount,
+          amount_usd,
           from_wallet,
           sender:users!tips_from_wallet_fkey(username, display_name, avatar_url)
         `)
@@ -196,7 +205,9 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         
       if (tipsData) {
         const total = tipsData.reduce((acc, tip) => acc + tip.amount, 0);
+        const totalUsd = tipsData.reduce((acc, tip) => acc + (tip.amount_usd || 0), 0);
         setTotalTipped(total);
+        setTotalTippedUsd(totalUsd);
 
         // Aggregate top tippers
         const tipperMap = new Map<string, any>();
@@ -207,9 +218,11 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             username: (tip.sender as any).username,
             display_name: (tip.sender as any).display_name,
             avatar_url: (tip.sender as any).avatar_url,
-            total_amount: 0
+            total_amount: 0,
+            total_amount_usd: 0
           };
           current.total_amount += tip.amount;
+          current.total_amount_usd += (tip.amount_usd || 0);
           tipperMap.set(tip.from_wallet, current);
         });
 
@@ -710,7 +723,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
             recipientAddress={profile.wallet_address}
             recipientName={profile.display_name}
             recipientAvatar={profile.avatar_url}
-            onConfirm={async (amount) => {
+            onConfirm={async (amount, amountUsd) => {
               if (!publicKey) return;
               try {
                 await sendTip(publicKey, profile.wallet_address, amount, sendTransaction);
@@ -721,6 +734,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                     from_wallet: publicKey.toString(),
                     to_wallet: profile.wallet_address,
                     amount: amount,
+                    amount_usd: amountUsd || 0,
                   }
                 ]);
                 
@@ -769,7 +783,11 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
               </div>
               <p className="font-body-sm text-on-surface-variant flex items-center gap-1 mt-1">
                 Total Received: <span className="font-bold text-surface-tint">{parseFloat(totalTipped.toFixed(3))} SOL</span>
-                {solPrice && <span className="opacity-80">(~${(totalTipped * solPrice).toFixed(2)})</span>}
+                {totalTippedUsd > 0 ? (
+                  <span className="opacity-80">(${totalTippedUsd.toFixed(2)})</span>
+                ) : (
+                  solPrice && <span className="opacity-80">(${(totalTipped * solPrice).toFixed(2)})</span>
+                )}
               </p>
             </div>
             
@@ -816,10 +834,16 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                           <svg className="w-[15px] h-[12px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" /><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" /><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" /></svg>
                           {parseFloat(tipper.total_amount.toFixed(3))}
                         </span>
-                        {solPrice && (
+                        {tipper.total_amount_usd > 0 ? (
                           <span className="font-label-sm text-surface-tint opacity-70">
-                            (~${(tipper.total_amount * solPrice).toFixed(2)})
+                            ${tipper.total_amount_usd.toFixed(2)}
                           </span>
+                        ) : (
+                          solPrice && (
+                            <span className="font-label-sm text-surface-tint opacity-70">
+                              ${(tipper.total_amount * solPrice).toFixed(2)}
+                            </span>
+                          )
                         )}
                       </div>
                     </Link>

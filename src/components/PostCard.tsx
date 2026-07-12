@@ -138,7 +138,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
     setIsTipModalOpen(true);
   };
 
-  const confirmTip = async (amount: number) => {
+  const confirmTip = async (amount: number, amountUsd?: number) => {
     if (!publicKey) return;
     
     try {
@@ -150,6 +150,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           from_wallet: publicKey.toString(),
           to_wallet: post.authorPublicKey,
           amount: amount,
+          amount_usd: amountUsd || 0,
         }
       ]);
       
@@ -163,7 +164,8 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           actor_wallet: publicKey.toString(),
           type: "tip",
           post_id: post.id,
-          amount: amount
+          amount: amount,
+          amount_usd: amountUsd || 0,
         }]);
       }
 

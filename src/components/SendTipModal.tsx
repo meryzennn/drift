@@ -12,7 +12,7 @@ interface SendTipModalProps {
   recipientAddress: string;
   recipientName?: string;
   recipientAvatar?: string;
-  onConfirm: (amount: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => void;
+  onConfirm: (amount: number, amountUsd?: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => void;
   allowMessage?: boolean;
 }
 
@@ -42,24 +42,26 @@ export default function SendTipModal({
   const { connection } = useConnection();
   const [balance, setBalance] = useState<number>(0);
 
-  // Fetch live SOL price from Binance (more reliable, no rate limit for public)
+  // Fetch live SOL price from Binance (more reliable for CORS), fallback to CoinGecko
   useEffect(() => {
     const fetchPrice = async () => {
       try {
-        const res = await fetch(
-          "https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT"
-        );
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
         const data = await res.json();
         if (data?.price) {
           setSolPrice(parseFloat(data.price));
+        } else {
+          throw new Error("Invalid Binance response");
         }
       } catch {
-        // fallback: try Jupiter
         try {
-          const res2 = await fetch("https://price.jup.ag/v6/price?ids=SOL");
+          const res2 = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
           const data2 = await res2.json();
-          const price = data2?.data?.SOL?.price;
-          if (price) setSolPrice(price);
+          if (data2?.solana?.usd) {
+            setSolPrice(parseFloat(data2.solana.usd));
+          } else {
+            throw new Error("Invalid CoinGecko response");
+          }
         } catch {
           setSolPrice(null);
         }
@@ -133,8 +135,9 @@ export default function SendTipModal({
 
   const handleConfirm = () => {
     const amountNum = parseFloat(solAmount);
+    const amountUsd = solPrice ? parseFloat((amountNum * solPrice).toFixed(2)) : undefined;
     if (!isNaN(amountNum) && amountNum > 0) {
-      onConfirm(amountNum, allowMessage ? message : undefined, mediaFile || undefined, mediaGifUrl || undefined);
+      onConfirm(amountNum, amountUsd, allowMessage ? message : undefined, mediaFile || undefined, mediaGifUrl || undefined);
     }
   };
 
@@ -220,7 +223,7 @@ export default function SendTipModal({
                       {amount} SOL
                     </span>
                     <span className={`font-body-sm text-body-sm mt-xs ${isSelected ? "text-primary/70" : "text-on-surface-variant"}`}>
-                      {solPrice ? `~$${(amount * solPrice).toFixed(2)}` : "—"}
+                      {solPrice ? `$${(amount * solPrice).toFixed(2)}` : "—"}
                     </span>
                   </button>
                 );
@@ -300,7 +303,7 @@ export default function SendTipModal({
             <div className="mt-sm flex justify-end">
               <span className={`font-body-sm text-body-sm ${isSufficientBalance ? "text-on-surface-variant" : "text-error"}`}>
                 Balance: {balance.toFixed(4)} SOL
-                {solPrice && ` (~$${(balance * solPrice).toFixed(2)})`}
+                {solPrice && ` ($${(balance * solPrice).toFixed(2)})`}
               </span>
             </div>
           </div>

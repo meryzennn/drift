@@ -505,7 +505,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     }
   };
   
-  const handleSendTip = async (amount: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => {
+  const handleSendTip = async (amount: number, amountUsd?: number, message?: string, mediaFile?: File, mediaGifUrl?: string) => {
     if (!publicKey || !otherUser) return;
     try {
       const signature = await sendTip(publicKey, otherUser.wallet_address, amount, sendTransaction);
