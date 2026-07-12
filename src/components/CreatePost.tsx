@@ -9,6 +9,17 @@ import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
 
+const PLACEHOLDERS = [
+  "What's happening in Web3?",
+  "Drop your alpha here...",
+  "Any new airdrops today?",
+  "What are you building on Solana?",
+  "Found any hidden gems?",
+  "Shill your favorite token...",
+  "How's the market treating you?",
+  "Spill the tea on Web3..."
+];
+
 export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
@@ -21,8 +32,13 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [placeholder, setPlaceholder] = useState("What's happening in Web3?");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setPlaceholder(PLACEHOLDERS[Math.floor(Math.random() * PLACEHOLDERS.length)]);
+  }, []);
 
   useEffect(() => {
     if (file) {
@@ -258,7 +274,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
             onKeyDown={handleKeyDown}
             maxLength={255}
             className="w-full bg-transparent border-none text-on-surface placeholder:text-on-surface-variant font-body-lg resize-none focus:ring-0 p-0 min-h-[80px] outline-none"
-            placeholder="What's happening in Web3?"
+            placeholder={placeholder}
           ></textarea>
           
           {showDropdown && suggestions.length > 0 && (

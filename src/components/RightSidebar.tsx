@@ -1,8 +1,32 @@
 "use client";
 
 import SearchBar from "./SearchBar";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+const ALL_TRENDING_TOPICS = [
+  { tag: "#Solana", tweets: "124K", category: "Technology" },
+  { tag: "$JUP", tweets: "89K", category: "DeFi" },
+  { tag: "Breakpoint 2026", tweets: "45K", category: "Events" },
+  { tag: "NFTs", tweets: "34K", category: "Art" },
+  { tag: "#Drift", tweets: "21K", category: "Social" },
+  { tag: "Crypto", tweets: "19K", category: "Finance" },
+  { tag: "Blink", tweets: "15K", category: "Technology" },
+  { tag: "$DRIFT", tweets: "12K", category: "Token" },
+  { tag: "Airdrops", tweets: "9K", category: "Finance" },
+  { tag: "Web3", tweets: "55K", category: "Technology" },
+  { tag: "Metaverse", tweets: "8K", category: "Gaming" },
+  { tag: "DePIN", tweets: "14K", category: "Infrastructure" },
+];
 
 export default function RightSidebar() {
+  const [trending, setTrending] = useState<typeof ALL_TRENDING_TOPICS>([]);
+
+  useEffect(() => {
+    const shuffled = [...ALL_TRENDING_TOPICS].sort(() => 0.5 - Math.random());
+    setTrending(shuffled.slice(0, 5));
+  }, []);
+
   return (
     <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pt-xl pb-lg h-[calc(100vh-64px)] overflow-y-auto hide-scrollbar">
       
@@ -13,13 +37,7 @@ export default function RightSidebar() {
       <div className="bg-surface-container border border-outline-variant rounded-xl p-md">
         <h3 className="font-headline-md text-[18px] font-bold text-on-surface mb-md px-xs">Trending in Web3</h3>
         <div className="flex flex-col gap-sm">
-          {[
-            { tag: "#Solana", tweets: "124K", category: "Technology" },
-            { tag: "$JUP", tweets: "89K", category: "DeFi" },
-            { tag: "Breakpoint 2026", tweets: "45K", category: "Events" },
-            { tag: "NFTs", tweets: "34K", category: "Art" },
-            { tag: "#Drift", tweets: "21K", category: "Social" },
-          ].map((item, i) => (
+          {trending.length > 0 ? trending.map((item, i) => (
             <div key={i} className="hover:bg-surface-container-high p-sm rounded-lg cursor-pointer transition-colors">
               <div className="flex justify-between items-start">
                 <div className="text-outline text-[12px] font-body-sm">{item.category} · Trending</div>
@@ -28,7 +46,13 @@ export default function RightSidebar() {
               <div className="font-label-lg font-bold text-on-surface my-0.5">{item.tag}</div>
               <div className="text-outline text-[12px] font-body-sm">{item.tweets} posts</div>
             </div>
-          ))}
+          )) : (
+            <div className="animate-pulse space-y-4 p-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-12 bg-surface-container-highest rounded-lg"></div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -60,11 +84,11 @@ export default function RightSidebar() {
       </div>
 
       {/* Footer */}
-      <div className="px-md flex flex-wrap gap-x-3 gap-y-1 font-body-sm text-outline text-[12px]">
-        <a className="hover:underline" href="#">Terms of Service</a>
-        <a className="hover:underline" href="#">Privacy Policy</a>
-        <a className="hover:underline" href="#">Cookie Policy</a>
-        <span>© 2024 Drift</span>
+      <div className="px-md flex flex-wrap gap-x-3 gap-y-1 font-mono text-outline text-[12px] items-center">
+        <Link className="hover:underline hover:text-primary transition-colors" href="/terms">Terms of Service</Link>
+        <Link className="hover:underline hover:text-primary transition-colors" href="/privacy">Privacy Policy</Link>
+        <Link className="hover:underline hover:text-primary transition-colors" href="/cookie">Cookie Policy</Link>
+        <span>© 2026 Drift</span>
       </div>
     </aside>
   );
