@@ -62,11 +62,11 @@ export default function LeftSidebarProfile() {
   if (isLoading || !profile) {
     return (
       <div className="mt-auto flex items-center justify-between gap-sm p-sm rounded-full bg-surface-container-low border border-outline-variant/30 animate-pulse">
-        <div className="flex items-center gap-sm flex-1">
-          <div className="w-10 h-10 rounded-full bg-surface-container-highest shrink-0"></div>
-          <div className="flex flex-col gap-1 w-full max-w-[120px]">
-            <div className="h-3.5 bg-surface-container-highest rounded-full w-3/4"></div>
-            <div className="h-2.5 bg-surface-container-highest rounded-full w-1/2"></div>
+        <div className="flex items-center gap-sm overflow-hidden flex-1">
+          <div className="w-10 h-10 rounded-full bg-surface-container-highest shrink-0 border border-outline-variant/30"></div>
+          <div className="flex flex-col gap-1.5 w-full max-w-[120px] overflow-hidden">
+            <div className="h-4 bg-surface-container-highest rounded-full w-24"></div>
+            <div className="h-3 bg-surface-container-highest rounded-full w-16"></div>
           </div>
         </div>
         <div className="w-8 h-8 rounded-full bg-surface-container-highest shrink-0"></div>

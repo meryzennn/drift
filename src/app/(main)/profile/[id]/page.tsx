@@ -420,7 +420,17 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const isOwner = connected && publicKey?.toString() === profile?.wallet_address;
 
   return (
-    <div className="flex flex-col border border-outline-variant rounded-xl bg-surface-container-lowest overflow-hidden">
+    <div className="flex flex-col border border-outline-variant rounded-xl bg-surface-container-lowest overflow-hidden relative">
+      {!isOwner && (
+        <button 
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors border border-white/20 shadow-lg"
+          title="Go Back"
+        >
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+        </button>
+      )}
+      
       {/* Header Banner */}
       <div className="h-48 md:h-64 w-full bg-surface-container-high relative border-b border-outline-variant">
         <div 

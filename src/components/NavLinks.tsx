@@ -3,11 +3,31 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { supabase } from "@/utils/supabase";
+import { useEffect, useState } from "react";
 
 export default function NavLinks() {
   const pathname = usePathname();
   const router = useRouter();
   const { notifications: notifCount, messages: msgCount } = useUnreadNotifications();
+  const { publicKey } = useWallet();
+  const [myUsername, setMyUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (publicKey) {
+      supabase
+        .from("users")
+        .select("username")
+        .eq("wallet_address", publicKey.toString())
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setMyUsername(data.username);
+        });
+    } else {
+      setMyUsername(null);
+    }
+  }, [publicKey]);
 
   const links = [
     { href: "/", label: "Home", icon: "home" },
@@ -21,7 +41,15 @@ export default function NavLinks() {
   return (
     <nav className="flex flex-col gap-sm">
       {links.map((link) => {
-        const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+        let isActive = false;
+        if (link.href === "/") {
+          isActive = pathname === "/";
+        } else if (link.href === "/profile") {
+          isActive = pathname === "/profile" || (myUsername !== null && pathname === `/profile/${myUsername}`);
+        } else {
+          isActive = pathname.startsWith(link.href);
+        }
+
         return (
           <Link 
             key={link.href} 
@@ -37,7 +65,7 @@ export default function NavLinks() {
                 window.scrollTo(0, 0);
               }
             }}
-            className={`flex items-center gap-md px-md py-sm rounded-full cursor-pointer active:opacity-80 transition-all ${
+            className={`flex items-center gap-md px-md py-sm rounded-full cursor-pointer active:scale-[0.97] transition-all duration-200 ${
               isActive 
                 ? "text-primary bg-primary-container/10" 
                 : "text-on-surface hover:text-primary hover:bg-surface-container-high"

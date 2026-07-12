@@ -3,11 +3,31 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { supabase } from "@/utils/supabase";
+import { useEffect, useState } from "react";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { notifications: notifCount, messages: msgCount } = useUnreadNotifications();
+  const { publicKey } = useWallet();
+  const [myUsername, setMyUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (publicKey) {
+      supabase
+        .from("users")
+        .select("username")
+        .eq("wallet_address", publicKey.toString())
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setMyUsername(data.username);
+        });
+    } else {
+      setMyUsername(null);
+    }
+  }, [publicKey]);
 
   const links = [
     { href: "/", icon: "home" },
@@ -20,7 +40,15 @@ export default function MobileBottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-0 w-full bg-background/90 backdrop-blur-md border-t border-outline-variant flex justify-around items-center h-16 pb-safe z-50">
       {links.map((link) => {
-        const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+        let isActive = false;
+        if (link.href === "/") {
+          isActive = pathname === "/";
+        } else if (link.href === "/profile") {
+          isActive = pathname === "/profile" || (myUsername !== null && pathname === `/profile/${myUsername}`);
+        } else {
+          isActive = pathname.startsWith(link.href);
+        }
+
         return (
           <Link 
             key={link.href} 
@@ -36,8 +64,10 @@ export default function MobileBottomNav() {
                 window.scrollTo(0, 0);
               }
             }}
-            className={`flex flex-col items-center justify-center w-full h-full transition-colors relative ${
-              isActive ? "text-primary" : "text-outline hover:text-on-surface"
+            className={`flex flex-col items-center justify-center w-12 h-12 rounded-full cursor-pointer active:scale-[0.90] transition-all duration-200 ${
+              isActive 
+                ? "text-primary" 
+                : "text-on-surface-variant hover:text-on-surface"
             }`}
           >
             <div className="relative flex flex-col items-center justify-center">
