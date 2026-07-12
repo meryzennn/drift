@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import Link from "next/link";
 
 export const revalidate = 0;
 
@@ -42,9 +43,10 @@ export default async function LeaderboardPage() {
         ) : (
           <div className="flex flex-col">
             {topTippers.map((tipper: any, index: number) => (
-              <div 
+              <Link 
                 key={tipper.from_wallet} 
-                className={`flex items-center justify-between p-md hover:bg-surface-container-high transition-colors ${
+                href={`/profile/${tipper.users?.username || tipper.from_wallet}`}
+                className={`flex items-center justify-between p-md hover:bg-surface-container-high transition-colors group cursor-pointer ${
                   index !== topTippers.length - 1 ? "border-b border-outline-variant/50" : ""
                 }`}
               >
@@ -53,7 +55,7 @@ export default async function LeaderboardPage() {
                     {index + 1}
                   </div>
                   
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-surface-container-highest flex items-center justify-center font-bold text-on-surface relative text-xl">
+                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-surface-container-highest flex items-center justify-center font-bold text-on-surface relative text-xl group-hover:border-primary/50 transition-colors">
                     {tipper.users?.avatar_url ? (
                       <img src={tipper.users.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -62,7 +64,7 @@ export default async function LeaderboardPage() {
                   </div>
                   
                   <div>
-                    <div className="font-label-lg text-on-surface font-bold text-[18px]">
+                    <div className="font-label-lg text-on-surface font-bold text-[18px] group-hover:text-primary transition-colors">
                       {tipper.users?.display_name || "Unknown"}
                     </div>
                     <div className="font-mono text-[14px] text-on-surface-variant">
@@ -79,7 +81,7 @@ export default async function LeaderboardPage() {
                   </svg>
                   {tipper.total_tipped} SOL
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

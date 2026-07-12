@@ -792,7 +792,7 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
                       onClick={() => setIsLeaderboardOpen(false)}
                     >
                       <div className="w-8 shrink-0 flex justify-center font-bold font-label-lg text-on-surface-variant">
-                        {actualIndex === 0 ? "🥇" : actualIndex === 1 ? "🥈" : actualIndex === 2 ? "🥉" : `#${actualIndex + 1}`}
+                        #{actualIndex + 1}
                       </div>
                       <div className="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant/30">
                         {tipper.avatar_url ? (

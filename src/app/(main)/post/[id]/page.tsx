@@ -63,7 +63,7 @@ export default async function PostDetailPage({ params, searchParams }: { params:
       <CreateComment postId={post.id} postAuthor={post.authorPublicKey} />
 
       {/* Replies List */}
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-md pb-md">
         {replies.length === 0 ? (
           <div className="p-xl text-center text-on-surface-variant font-body-md">
             No replies yet. Be the first to reply!

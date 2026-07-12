@@ -46,11 +46,11 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
       const cat = CATEGORIES[catIndex];
       let url = "";
       if (query.trim()) {
-        url = `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(query)}&limit=24&rating=g`;
+        url = `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g`;
       } else if (cat.endpoint === "trending") {
-        url = `https://api.giphy.com/v1/gifs/trending?api_key=${API_KEY}&limit=24&rating=g`;
+        url = `https://api.giphy.com/v1/gifs/trending?api_key=${API_KEY}&limit=50&rating=g`;
       } else {
-        url = `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(cat.query || cat.label)}&limit=24&rating=g`;
+        url = `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(cat.query || cat.label)}&limit=50&rating=g`;
       }
       const res = await fetch(url);
       const json = await res.json();
@@ -73,7 +73,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-md">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[42rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "85vh" }}>
+      <div className="relative w-full max-w-[42rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ height: "650px", maxHeight: "85vh" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-xl py-md border-b border-[#2a2a3a] shrink-0">
           <div className="flex items-center gap-sm">
@@ -135,7 +135,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
         {/* GIF Grid */}
         {!noApiKey && (
-          <div className="flex-1 overflow-y-auto p-md">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-md">
             {loading ? (
               <div className="flex items-center justify-center h-48 gap-sm text-on-surface-variant">
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />

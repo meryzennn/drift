@@ -1,7 +1,7 @@
 "use client";
 
 import { Post } from "@/types";
-import { formatDistanceToNow } from "date-fns";
+import { getFormattedDate } from "@/utils/dateUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
 import { useState } from "react";
@@ -477,6 +477,9 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
     });
   };
 
+  const formattedDate = getFormattedDate(post.createdAt);
+  const formattedQuoteDate = localQuotePost ? getFormattedDate(localQuotePost.createdAt) : null;
+
   return (
     <article 
       id={post.id}
@@ -484,7 +487,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
         isHighlighted 
           ? 'border-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] bg-primary/5 ring-1 ring-primary/30' 
           : 'border-outline-variant'
-      } ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer mb-md'}`} 
+      } ${isDetail ? '' : 'hover:bg-surface-container-low cursor-pointer'}`} 
       onClick={handleCardClick}
     >
       {tipActivity && (
@@ -549,8 +552,11 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
               @{post.authorProfile?.username || formatAddress(post.authorPublicKey)}
             </Link>
             <span className="text-on-surface-variant text-sm px-xs shrink-0">•</span>
-            <span className="font-body-sm text-on-surface-variant shrink-0 whitespace-nowrap" suppressHydrationWarning>
-              {formatDistanceToNow(new Date(post.createdAt))}
+            <span 
+              className="text-on-surface-variant shrink-0 whitespace-nowrap font-space-grotesk text-[13px] font-medium" 
+              suppressHydrationWarning
+            >
+              {formattedDate.text}
             </span>
 
             <div className="ml-auto relative flex items-center">
@@ -627,7 +633,7 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           
           {post.imageUrl && (
             <div 
-              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low transition-opacity relative group flex items-center justify-center"
+              className="rounded-xl overflow-hidden border border-outline-variant mt-md bg-surface-container-low transition-opacity relative group flex items-center justify-center min-h-[300px]"
             >
               {post.imageUrl.toLowerCase().endsWith(".mp4") ? (
                 <VideoPlayer url={post.imageUrl} />
@@ -669,7 +675,12 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
                     @{localQuotePost.authorProfile?.username || formatAddress(localQuotePost.authorPublicKey)}
                   </span>
                   <span className="text-on-surface-variant shrink-0">·</span>
-                  <span className="text-on-surface-variant shrink-0 whitespace-nowrap">{formatDistanceToNow(new Date(localQuotePost.createdAt))}</span>
+                  <span 
+                    className="text-on-surface-variant shrink-0 whitespace-nowrap font-space-grotesk text-[12px] font-medium"
+                    suppressHydrationWarning
+                  >
+                    {formattedQuoteDate?.text}
+                  </span>
                 </div>
               </div>
               

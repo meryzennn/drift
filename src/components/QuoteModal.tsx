@@ -5,7 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
 import { Post } from "@/types";
-import { formatDistanceToNow } from "date-fns";
+import { getFormattedDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
 
 interface QuoteModalProps {
@@ -144,8 +144,11 @@ export default function QuoteModal({ isOpen, onClose, quotedPost, onSuccess }: Q
                   @{quotedPost.authorProfile?.username || `${quotedPost.authorPublicKey.slice(0,4)}...`}
                 </span>
                 <span className="text-on-surface-variant text-sm px-xs">•</span>
-                <span className="font-body-sm text-on-surface-variant" suppressHydrationWarning>
-                  {formatDistanceToNow(new Date(quotedPost.createdAt))}
+                <span 
+                  className="text-on-surface-variant shrink-0 whitespace-nowrap font-space-grotesk text-[12px] font-medium"
+                  suppressHydrationWarning
+                >
+                  {getFormattedDate(quotedPost.createdAt).text}
                 </span>
               </div>
               <div className="font-body-sm text-on-surface line-clamp-3">

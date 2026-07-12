@@ -61,8 +61,8 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
       const cat = GIPHY_CATEGORIES[catIdx];
       const query = q.trim() || cat.query || "trending";
       const endpoint = q.trim() || cat.query
-        ? `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(query)}&limit=24&rating=g`
-        : `https://api.giphy.com/v1/gifs/trending?api_key=${API_KEY}&limit=24&rating=g`;
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${API_KEY}&q=${encodeURIComponent(query)}&limit=50&rating=g`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${API_KEY}&limit=50&rating=g`;
       const res = await fetch(endpoint);
       const json = await res.json();
       setGifs(json.data || []);
@@ -153,7 +153,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
       
       <div
         className="relative w-full max-w-[32rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ maxHeight: "85vh" }}
+        style={{ height: "650px", maxHeight: "85vh" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-xl py-md border-b border-[#2a2a3a] shrink-0">
@@ -262,7 +262,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
 
             {/* GIF Grid */}
             {API_KEY && (
-              <div className="flex-1 overflow-y-auto p-md">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-md">
                 {gifLoading ? (
                   <div className="flex items-center justify-center h-48 gap-sm text-on-surface-variant">
                     <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -317,7 +317,7 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
                 <p className="font-body-md">No NFTs found</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto p-md">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-md">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {nfts.map((nft: any) => {
                     const imgUrl = nft.content?.files?.[0]?.uri || nft.content?.links?.image;

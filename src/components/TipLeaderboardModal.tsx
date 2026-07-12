@@ -115,18 +115,18 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
               {tippers.map((t, i) => (
                 <div
                   key={`${t.actor_wallet}-${i}`}
-                  className="flex items-center gap-md px-lg py-md hover:bg-surface-container-highest transition-colors cursor-pointer border-b border-outline-variant/30 last:border-0"
+                  className="flex items-center gap-md px-lg py-md hover:bg-surface-container-highest transition-colors cursor-pointer border-b border-outline-variant/30 last:border-0 group"
                   onClick={() => { router.push(`/profile/${t.username || t.actor_wallet}`); onClose(); }}
                 >
                   {/* Rank */}
                   <span className={`font-bold text-sm w-5 text-center shrink-0 ${
                     i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-outline"
                   }`}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                    #{i + 1}
                   </span>
 
                   {/* Avatar */}
-                  <div className="w-9 h-9 rounded-full bg-primary/20 overflow-hidden shrink-0 border border-outline-variant">
+                  <div className="w-9 h-9 rounded-full bg-primary/20 overflow-hidden shrink-0 border border-outline-variant group-hover:border-primary/50 transition-colors">
                     {t.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -137,7 +137,7 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
 
                   {/* Name */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-label-md text-on-surface truncate">
+                    <p className="font-label-md text-on-surface truncate group-hover:text-primary transition-colors">
                       @{t.username || `${t.actor_wallet.slice(0, 6)}...`}
                     </p>
                   </div>

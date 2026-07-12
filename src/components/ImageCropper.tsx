@@ -63,27 +63,74 @@ export default function ImageCropper({ imageSrc, aspectRatio, onCropComplete, on
   const modal = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-md">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[42rem] bg-[#0f0f13] border border-[#2a2a3a] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-xl py-md border-b border-[#2a2a3a]">
-          <div>
-            <h2 className="font-label-lg text-on-surface">Crop {label}</h2>
-            <p className="font-body-sm text-on-surface-variant mt-0.5">Target: {targetRes} · Rasio {aspectRatio === 1 ? "1:1" : "3:1"}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
-            <span className="material-symbols-outlined text-[20px]">close</span>
+      <div className="relative w-full max-w-[42rem] bg-[#313338] rounded-md shadow-2xl flex flex-col overflow-hidden">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5">
+          <h2 className="font-bold text-white text-[20px]">Edit Image</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 transition-colors text-white/70 hover:text-white">
+            <span className="material-symbols-outlined text-[24px]">close</span>
           </button>
         </div>
-        <div className="relative w-full bg-black" style={{ height: aspectRatio === 1 ? "360px" : "280px" }}>
-          <Cropper image={imageSrc} crop={crop} zoom={zoom} aspect={aspectRatio} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropCompleteCallback} style={{ containerStyle: { background: "#000" } }} />
+        
+        {/* Cropper Container */}
+        <div className="relative w-full bg-[#1e1f22]" style={{ height: aspectRatio === 1 ? "400px" : "320px" }}>
+          <Cropper 
+            image={imageSrc} 
+            crop={crop} 
+            zoom={zoom} 
+            aspect={aspectRatio} 
+            onCropChange={setCrop} 
+            onZoomChange={setZoom} 
+            onCropComplete={onCropCompleteCallback}
+            style={{ 
+              containerStyle: { background: "#1e1f22" },
+              cropAreaStyle: { border: "2px solid white", color: "rgba(0,0,0,0.5)" }
+            }} 
+          />
         </div>
-        <div className="px-xl py-md border-t border-[#2a2a3a] flex items-center gap-md">
-          <span className="material-symbols-outlined text-on-surface-variant text-[18px]">zoom_out</span>
-          <input type="range" min={1} max={3} step={0.05} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1 accent-primary h-1" />
-          <span className="material-symbols-outlined text-on-surface-variant text-[18px]">zoom_in</span>
+        
+        {/* Zoom Slider & Controls */}
+        <div className="px-6 py-4 flex items-center justify-center gap-4 bg-[#313338]">
+          <div className="flex items-center gap-4 w-full max-w-sm">
+            <span className="material-symbols-outlined text-[#b5bac1] text-[16px]">image</span>
+            <input 
+              type="range" 
+              min={1} 
+              max={3} 
+              step={0.05} 
+              value={zoom} 
+              onChange={(e) => setZoom(Number(e.target.value))} 
+              className="flex-1 accent-white h-1.5 bg-[#1e1f22] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer" 
+            />
+            <span className="material-symbols-outlined text-[#b5bac1] text-[24px]">image</span>
+          </div>
         </div>
-        <div className="flex gap-md px-xl pb-xl">
-          <button onClick={onClose} className="flex-1 py-sm border border-outline-variant text-on-surface rounded-lg font-label-md hover:bg-surface-container-highest transition-colors">Cancel</button>
-          <button onClick={handleApply} disabled={applying} className="flex-1 py-sm bg-primary text-on-primary rounded-lg font-label-md hover:bg-primary/90 transition-colors disabled:opacity-60">{applying ? "Applying..." : "Apply Crop"}</button>
+        
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between px-6 py-4 bg-[#2b2d31]">
+          <button 
+            onClick={() => setZoom(1)} 
+            className="text-[#00a8fc] font-semibold text-[14px] hover:underline"
+          >
+            Reset
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onClose} 
+              className="px-6 py-2 bg-transparent text-white font-semibold text-[14px] rounded hover:underline transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleApply} 
+              disabled={applying} 
+              className="px-8 py-2 bg-[#5865F2] text-white rounded font-semibold text-[14px] hover:bg-[#4752C4] transition-colors disabled:opacity-60"
+            >
+              {applying ? "Applying..." : "Apply"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
