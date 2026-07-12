@@ -206,9 +206,18 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
                   <span key={f} className="px-xs py-0.5 bg-surface-container-high border border-outline-variant rounded text-[11px] font-label-sm text-on-surface">{f}</span>
                 ))}
               </div>
-              <p className="font-body-sm text-on-surface-variant mt-xs">Max file size: <span className="text-on-surface font-label-sm">{maxMB}MB</span></p>
-              <p className="font-body-sm text-on-surface-variant">Target resolution: <span className="text-on-surface font-label-sm">{resolution}</span></p>
-              <p className="font-body-sm text-outline-variant text-[11px]">* GIFs are used directly · JPG/PNG will open cropper</p>
+              {type === "post" ? (
+                <>
+                  <p className="font-body-sm text-on-surface-variant mt-xs">Images: <span className="text-on-surface font-label-sm">Max 10MB</span> <span className="text-outline-variant text-[11px]">(Auto-compressed to ~1MB)</span></p>
+                  <p className="font-body-sm text-on-surface-variant mt-1">Videos: <span className="text-on-surface font-label-sm">Max 30MB</span> <span className="text-outline-variant text-[11px]">(Max 720p, 60s)</span></p>
+                </>
+              ) : (
+                <>
+                  <p className="font-body-sm text-on-surface-variant mt-xs">Max file size: <span className="text-on-surface font-label-sm">{maxMB}MB</span></p>
+                  <p className="font-body-sm text-on-surface-variant">Target resolution: <span className="text-on-surface font-label-sm">{resolution}</span></p>
+                  <p className="font-body-sm text-outline-variant text-[11px]">* GIFs are used directly · JPG/PNG will open cropper</p>
+                </>
+              )}
             </div>
 
             {dragError && <p className="font-body-sm text-error">{dragError}</p>}

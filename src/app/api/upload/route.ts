@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from "crypto";
 
 // Configure the AWS S3 client for Cloudflare R2
 const s3Client = new S3Client({
@@ -21,7 +22,8 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const uniqueFilename = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    const extension = file.name.split('.').pop() || 'bin';
+    const uniqueFilename = `${crypto.randomUUID()}.${extension}`;
     const bucketName = process.env.R2_BUCKET_NAME || "";
 
     // Upload to Cloudflare R2

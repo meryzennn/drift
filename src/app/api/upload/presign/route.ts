@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import crypto from "crypto";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -19,7 +20,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing filename or contentType" }, { status: 400 });
     }
 
-    const uniqueFilename = `${Date.now()}-${filename.replace(/\s+/g, "-")}`;
+    const extension = filename.split('.').pop() || 'bin';
+    const uniqueFilename = `${crypto.randomUUID()}.${extension}`;
     const bucketName = process.env.R2_BUCKET_NAME || "";
 
     const command = new PutObjectCommand({

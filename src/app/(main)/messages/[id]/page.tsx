@@ -9,7 +9,7 @@ import { encryptMessage, decryptMessage } from "@/utils/encryption";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import MediaPickerModal from "@/components/MediaPickerModal";
-import { uploadFileToR2 } from "@/utils/upload";
+import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
 import ImageLightbox from "@/components/ImageLightbox";
 import SendTipModal from "@/components/SendTipModal";
 import { getFormattedDate } from "@/utils/dateUtils";
@@ -369,7 +369,14 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
         toast.loading("Uploading pasted image...");
         try {
-          const mediaUrl = await uploadFileToR2(file, file.name, file.type);
+          let fileToUpload: File | Blob = file;
+          try {
+            fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+          } catch (e) {
+            console.error("Compression error:", e);
+            throw new Error("Failed to compress image.");
+          }
+          const mediaUrl = await uploadFileToR2(fileToUpload, file.name, file.type);
           toast.dismiss();
           handleSend("", mediaUrl);
         } catch (err) {
@@ -522,7 +529,11 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                 fileToUpload = await imageCompression(mediaFile, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
               } catch (e) {
                 console.error("Compression error:", e);
+                throw new Error("Failed to compress tip media.");
               }
+            } else if (mediaFile.type.startsWith("video/")) {
+              const videoError = await validateVideoFile(mediaFile);
+              if (videoError) throw new Error(videoError);
             }
             finalMediaUrl = await uploadFileToR2(fileToUpload, mediaFile.name, fileToUpload.type || mediaFile.type);
             toast.dismiss("tip-media");
@@ -920,7 +931,11 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                 fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
               } catch (e) {
                 console.error("Compression error:", e);
+                throw new Error("Failed to compress media.");
               }
+            } else if (file.type.startsWith("video/")) {
+              const videoError = await validateVideoFile(file);
+              if (videoError) throw new Error(videoError);
             }
             const mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
             toast.dismiss();

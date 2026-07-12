@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
-import { uploadFileToR2 } from "@/utils/upload";
+import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
 import imageCompression from "browser-image-compression";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
@@ -73,6 +73,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             fileToUpload = await imageCompression(file, options);
           } catch (error) {
             console.error("Image compression error:", error);
+            throw new Error("Failed to compress image. Upload aborted.");
           }
         }
         mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
@@ -134,14 +135,19 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     }
   };
 
-  const validateFile = (selectedFile: File) => {
+  const validateFile = async (selectedFile: File) => {
     if (selectedFile.type.startsWith("video/")) {
       if (selectedFile.type !== "video/mp4") {
         toast.error("Only MP4 videos are allowed.");
         return false;
       }
-      if (selectedFile.size > 30 * 1024 * 1024) {
-        toast.error("Video size must be less than 30MB.");
+      
+      toast.loading("Validating video...", { id: "video-validate" });
+      const errorMsg = await validateVideoFile(selectedFile);
+      toast.dismiss("video-validate");
+      
+      if (errorMsg) {
+        toast.error(errorMsg);
         return false;
       }
     } else if (selectedFile.type.startsWith("image/")) {
@@ -153,10 +159,11 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     return true;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (validateFile(selectedFile)) {
+      const isValid = await validateFile(selectedFile);
+      if (isValid) {
         setFile(selectedFile);
         setGifUrl(null);
       }
@@ -164,8 +171,9 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     }
   };
 
-  const handleMediaPickerFile = (pickedFile: File) => {
-    if (validateFile(pickedFile)) {
+  const handleMediaPickerFile = async (pickedFile: File) => {
+    const isValid = await validateFile(pickedFile);
+    if (isValid) {
       setFile(pickedFile);
       setGifUrl(null);
       setIsMediaPickerOpen(false);
@@ -290,31 +298,31 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             </div>
           )}
 
-          <div className="flex justify-between items-center mt-sm">
-            <div className="flex gap-sm text-primary">
-              <input 
-                type="file" 
-                accept="image/*,video/mp4" 
-                className="hidden" 
-                ref={fileInputRef}
-                onChange={handleFileChange}
-              />
-              <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
-              >
-                <span className="material-symbols-outlined text-[20px]">image</span>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setIsMediaPickerOpen(true)}
-                className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
-              >
-                <span className="material-symbols-outlined text-[20px]">gif_box</span>
-              </button>
-            </div>
-            <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col gap-2 mt-sm pt-sm border-t border-outline-variant">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-sm text-primary">
+                <input 
+                  type="file" 
+                  accept="image/*,video/mp4" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[20px]">image</span>
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsMediaPickerOpen(true)}
+                  className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[20px]">gif_box</span>
+                </button>
+              </div>
               <div className="flex items-center gap-md">
                 <span className={`font-body-sm ${content.length >= 240 ? 'text-error' : 'text-on-surface-variant'}`}>
                   {content.length}/255
@@ -327,6 +335,9 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
                   {loading ? "Replying..." : "Reply"}
                 </button>
               </div>
+            </div>
+            <div className="flex justify-between items-center px-1">
+              <span className="text-[10px] text-on-surface-variant/50 hidden sm:block">Max: 10MB Image, 30MB Video (720p, 60s)</span>
               <span className="text-[10px] text-on-surface-variant/70 hidden sm:block">Press Enter to reply, Shift+Enter for new line</span>
             </div>
           </div>
