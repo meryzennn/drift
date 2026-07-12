@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
+import imageCompression from "browser-image-compression";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
@@ -59,8 +60,23 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
 
     try {
       if (file) {
+        let fileToUpload: File | Blob = file;
+        
+        if (file.type.startsWith("image/")) {
+          try {
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            fileToUpload = await imageCompression(file, options);
+          } catch (error) {
+            console.error("Image compression error:", error);
+          }
+        }
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", fileToUpload);
 
         const res = await fetch("/api/upload", {
           method: "POST",

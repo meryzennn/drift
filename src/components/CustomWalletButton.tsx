@@ -96,7 +96,7 @@ export default function CustomWalletButton() {
 
       {/* Dropdown Menu (Open State) */}
       {isDropdownOpen && (
-        <div className="absolute top-[120%] right-0 w-64 bg-[#09090b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden z-20 flex flex-col">
+        <div className="absolute top-[120%] right-0 w-64 bg-[#09090b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden z-20 flex flex-col animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-150 ease-out origin-top-right">
           {/* Header */}
           <div className="p-md border-b border-[#27272a] flex items-center gap-md">
             <div className="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden shrink-0 border border-[#27272a] flex items-center justify-center font-bold text-on-surface">
@@ -115,11 +115,11 @@ export default function CustomWalletButton() {
           {/* Balance */}
           <div className="p-md border-b border-[#27272a] flex flex-col gap-xs">
             <span className="font-label-sm text-[#a1a1aa] uppercase tracking-wider">Balance</span>
-            <div className="flex items-end gap-xs">
+            <div className="flex items-baseline gap-xs">
               <span className="font-headline-md text-on-background">
                 {balance !== null ? balance.toFixed(4) : "--"}
               </span>
-              <span className="font-body-sm text-[#a1a1aa] pb-[2px]">SOL</span>
+              <span className="font-body-sm text-[#a1a1aa]">SOL</span>
             </div>
           </div>
           {/* Actions */}

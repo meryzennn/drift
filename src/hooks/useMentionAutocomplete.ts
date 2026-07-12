@@ -4,7 +4,8 @@ import { supabase } from '@/utils/supabase';
 export function useMentionAutocomplete(
   content: string, 
   cursorPosition: number | null, 
-  setContent: (content: string) => void
+  setContent: (content: string) => void,
+  currentUsername: string | null = null
 ) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -47,6 +48,9 @@ export function useMentionAutocomplete(
       let req = supabase.from('users').select('username, display_name, avatar_url');
       if (query) {
         req = req.ilike('username', `${query}%`);
+      }
+      if (currentUsername) {
+        req = req.neq('username', currentUsername);
       }
       const { data, error } = await req.limit(5);
 

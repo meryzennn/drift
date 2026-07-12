@@ -11,6 +11,8 @@ import toast from "react-hot-toast";
 import MediaPickerModal from "@/components/MediaPickerModal";
 import ImageLightbox from "@/components/ImageLightbox";
 import SendTipModal from "@/components/SendTipModal";
+import { getFormattedDate } from "@/utils/formatters";
+import imageCompression from "browser-image-compression";
 import { sendTip } from "@/utils/solanaUtils";
 
 const getLastSeenText = (lastSeenISO: string | undefined) => {
@@ -518,8 +520,16 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         if (mediaFile) {
           toast.loading("Uploading tip media...", { id: "tip-media" });
           try {
+            let fileToUpload: File | Blob = mediaFile;
+            if (mediaFile.type.startsWith("image/")) {
+              try {
+                fileToUpload = await imageCompression(mediaFile, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+              } catch (e) {
+                console.error("Compression error:", e);
+              }
+            }
             const formData = new FormData();
-            formData.append("file", mediaFile);
+            formData.append("file", fileToUpload);
             formData.append("type", "post");
             const res = await fetch("/api/upload", { method: "POST", body: formData });
             if (!res.ok) throw new Error("Upload failed");
@@ -623,7 +633,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
@@ -908,8 +918,16 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           setIsMediaOpen(false);
           toast.loading("Uploading media...");
           try {
+            let fileToUpload: File | Blob = file;
+            if (file.type.startsWith("image/")) {
+              try {
+                fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+              } catch (e) {
+                console.error("Compression error:", e);
+              }
+            }
             const formData = new FormData();
-            formData.append("file", file);
+            formData.append("file", fileToUpload);
             formData.append("type", "post");
             const res = await fetch("/api/upload", { method: "POST", body: formData });
             if (!res.ok) throw new Error("Upload failed");

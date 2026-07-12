@@ -21,7 +21,7 @@ export function getFormattedDate(dateInput: string | Date): FormattedDate {
     // d = Day (e.g., 12)
     // yyyy = Year (e.g., 2026)
     return {
-      text: format(date, "EEEE, MMM d, yyyy"),
+      text: format(date, "d/M/yyyy"),
       useSpaceGrotesk: true,
     };
   }
