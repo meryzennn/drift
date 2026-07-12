@@ -159,22 +159,23 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
-/* Custom Scrollbar for Dark Theme */
-.custom-scrollbar::-webkit-scrollbar {
+/* Global Custom Scrollbar for Dark Theme */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: var(--color-surface-container-highest);
   border-radius: 4px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: var(--color-outline-variant);
 }
-.custom-scrollbar {
+html, body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-surface-container-highest) transparent;
+  overflow-y: scroll;
 }

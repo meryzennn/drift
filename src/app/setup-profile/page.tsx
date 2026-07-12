@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import ImageCropper from "@/components/ImageCropper";
 import MediaPickerModal from "@/components/MediaPickerModal";
 import { useUsernameCheck } from "@/hooks/useUsernameCheck";
+import imageCompression from "browser-image-compression";
 
 export default function SetupProfilePage() {
   const { publicKey, connected } = useWallet();
@@ -75,7 +76,14 @@ export default function SetupProfilePage() {
   const uploadFileFromBlob = async (blobUrl: string, type: "avatar" | "banner"): Promise<string> => {
     const res = await fetch(blobUrl);
     const blob = await res.blob();
-    const file = new File([blob], `${type}-${Date.now()}.jpg`, { type: "image/jpeg" });
+    let file = new File([blob], `${type}-${Date.now()}.jpg`, { type: "image/jpeg" });
+    
+    try {
+      file = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }) as File;
+    } catch (e) {
+      console.error("Compression error:", e);
+    }
+    
     const formData = new FormData();
     formData.append("file", file);
     const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });

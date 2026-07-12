@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 
 import Navbar from "@/components/Navbar";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import SplashScreen from "@/components/SplashScreen";
 
 const inter = Inter({ subsets: ["latin"] });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -27,6 +28,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.className} ${jetbrainsMono.variable} ${spaceGrotesk.variable} bg-background text-on-background min-h-screen antialiased flex flex-col`}>
+        <SplashScreen />
         <WalletContextProvider>
           <Navbar />
           <div className="flex-1 w-full relative">

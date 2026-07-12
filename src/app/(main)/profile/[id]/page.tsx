@@ -6,7 +6,8 @@ import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import { useState, useEffect, use } from "react";
 import { createPortal } from "react-dom";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -21,17 +22,18 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   const { publicKey, connected, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const router = useRouter();
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
-  const [mentions, setMentions] = useState<Post[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [tippedItems, setTippedItems] = useState<{ type: "post" | "profile"; post?: Post; recipient?: any; wallet?: string; amount: number; createdAt: string; id: string }[]>([]);
   const [totalTipped, setTotalTipped] = useState(0);
   const [totalTippedUsd, setTotalTippedUsd] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts" | "mentions">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "replies" | "media" | "tips" | "nfts" | "transactions">("posts");
   const [notFound, setNotFound] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -156,21 +158,6 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
         allPosts = [...allPosts, ...formattedReposts];
       }
 
-      allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setPosts(allPosts);
-
-      // Fetch user replies
-      const { data: repliesData } = await supabase
-        .from("posts")
-        .select(POST_SELECT_QUERY)
-        .eq("author_wallet", wallet)
-        .not("reply_to_post_id", "is", null)
-        .order("created_at", { ascending: false });
-
-      if (repliesData) {
-        setReplies(repliesData.map(mapPostData));
-      }
-
       // Fetch user mentions
       const { data: mentionsData } = await supabase
         .from("notifications")
@@ -187,9 +174,33 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           .filter((m: any) => m.posts)
           .map((m: any) => mapPostData(Array.isArray(m.posts) ? m.posts[0] : m.posts));
         
-        // Remove duplicates if the user was mentioned multiple times in the same post
         const uniqueMentions = Array.from(new Map(formattedMentions.map(p => [p.id, p])).values());
-        setMentions(uniqueMentions);
+        allPosts = [...allPosts, ...uniqueMentions];
+      }
+
+      const uniqueAllPosts = Array.from(new Map(allPosts.map(p => [p.id, p])).values());
+      uniqueAllPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setPosts(uniqueAllPosts);
+
+      // Fetch user replies
+      const { data: repliesData } = await supabase
+        .from("posts")
+        .select(POST_SELECT_QUERY)
+        .eq("author_wallet", wallet)
+        .not("reply_to_post_id", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (repliesData) {
+        setReplies(repliesData.map(mapPostData));
+      }
+
+      // Fetch Solana transactions
+      try {
+        const pubKey = new PublicKey(wallet);
+        const sigs = await connection.getSignaturesForAddress(pubKey, { limit: 20 });
+        setTransactions(sigs);
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
       }
 
       // Fetch total tipped received and leaderboards
@@ -560,39 +571,39 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       <div className="flex w-full border-b border-outline-variant overflow-x-auto hide-scrollbar sticky top-16 md:top-0 bg-background z-30">
         <button 
           onClick={() => setActiveTab("posts")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "posts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "posts" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Posts
         </button>
         <button 
           onClick={() => setActiveTab("replies")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "replies" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "replies" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Replies
         </button>
         <button 
           onClick={() => setActiveTab("media")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "media" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "media" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Media
         </button>
         <button 
           onClick={() => setActiveTab("nfts")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "nfts" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "nfts" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           NFTs
         </button>
         <button 
           onClick={() => setActiveTab("tips")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "tips" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "tips" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
           Tips
         </button>
         <button 
-          onClick={() => setActiveTab("mentions")}
-          className={`flex-1 px-2 md:px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center ${activeTab === "mentions" ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest"}`}
+          onClick={() => setActiveTab("transactions")}
+          className={`shrink-0 md:flex-1 px-4 py-4 font-label-md font-bold whitespace-nowrap transition-colors text-center border-b-2 ${activeTab === "transactions" ? "text-primary border-primary" : "text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container-lowest"}`}
         >
-          Mentions
+          Transactions
         </button>
       </div>
 
@@ -622,24 +633,56 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
           )
         )}
 
-        {activeTab === "mentions" && (
-          mentions.length === 0 ? (
-            <div className="text-center py-xl text-on-surface-variant font-body-md">No mentions yet.</div>
+        {activeTab === "transactions" && (
+          transactions.length === 0 ? (
+            <div className="text-center py-xl text-on-surface-variant font-body-md">No recent transactions found.</div>
           ) : (
-            <div className="flex flex-col gap-md">
-              {mentions.map((mention, index) => (
-                <PostCard key={`mention-${mention.id}-${index}`} post={mention} />
+            <div className="flex flex-col gap-sm">
+              {transactions.map((tx, index) => (
+                <div key={`tx-${tx.signature}-${index}`} className="p-4 border border-outline-variant rounded-xl bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!tx.err ? 'bg-[#00BA7C]/10 text-[#00BA7C]' : 'bg-error/10 text-error'}`}>
+                      <span className="material-symbols-outlined text-[20px]">
+                        {!tx.err ? 'check_circle' : 'cancel'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-label-md font-bold text-on-surface flex items-center gap-2 truncate">
+                        {tx.signature.slice(0, 8)}...{tx.signature.slice(-8)}
+                        {!tx.err ? (
+                          <span className="text-[10px] bg-[#00BA7C]/20 text-[#00BA7C] px-2 py-0.5 rounded-full shrink-0">Success</span>
+                        ) : (
+                          <span className="text-[10px] bg-error/20 text-error px-2 py-0.5 rounded-full shrink-0">Failed</span>
+                        )}
+                      </span>
+                      {tx.blockTime && (
+                        <span className="font-body-sm text-on-surface-variant truncate">
+                          {new Date(tx.blockTime * 1000).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <a 
+                    href={`https://solscan.io/tx/${tx.signature}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant rounded-full text-on-surface font-label-sm transition-colors w-fit sm:w-auto shrink-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                    Solscan
+                  </a>
+                </div>
               ))}
             </div>
           )
         )}
 
         {activeTab === "media" && (
-          posts.filter(p => p.imageUrl).length === 0 ? (
+          posts.filter(p => p.imageUrl && !p.isRepost && p.authorPublicKey === profile?.wallet_address).length === 0 ? (
             <div className="text-center py-xl text-on-surface-variant font-body-md">No media posts found.</div>
           ) : (
             <div className="flex flex-col gap-md">
-              {posts.filter(p => p.imageUrl).map((post, index) => (
+              {posts.filter(p => p.imageUrl && !p.isRepost && p.authorPublicKey === profile?.wallet_address).map((post, index) => (
                 <PostCard key={`media-${post.id}-${index}`} post={post} />
               ))}
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import imageCompression from "browser-image-compression";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,22 +39,24 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const { suggestions, showDropdown, handleSelect } = useMentionAutocomplete(
     content,
     cursorPos,
-    setContent
+    setContent,
+    currentUsername
   );
 
   useEffect(() => {
-    const fetchAvatar = async () => {
+    const fetchUserData = async () => {
       if (!publicKey) return;
       const { data } = await supabase
         .from("users")
-        .select("avatar_url")
+        .select("avatar_url, username")
         .eq("wallet_address", publicKey.toString())
         .maybeSingle();
-      if (data?.avatar_url) {
+      if (data) {
         setAvatarUrl(data.avatar_url);
+        setCurrentUsername(data.username);
       }
     };
-    fetchAvatar();
+    fetchUserData();
   }, [publicKey]);
 
   if (!connected) {
@@ -73,8 +77,25 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
     try {
       // 1. Upload image if exists
       if (file) {
+        let fileToUpload: File | Blob = file;
+        
+        // Compress if it's an image
+        if (file.type.startsWith("image/")) {
+          try {
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            fileToUpload = await imageCompression(file, options);
+          } catch (error) {
+            console.error("Image compression error:", error);
+            // Fallback to original file if compression fails
+          }
+        }
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", fileToUpload);
 
         const res = await fetch("/api/upload", {
           method: "POST",

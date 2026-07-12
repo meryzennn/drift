@@ -4,7 +4,7 @@ import { Post } from "@/types";
 import { getFormattedDate } from "@/utils/dateUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
-import { useState } from "react";
+import { useState, memo } from "react";
 import SendTipModal from "./SendTipModal";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
@@ -30,7 +30,7 @@ interface PostCardProps {
   };
 }
 
-export default function PostCard({ post, isDetail = false, hideReplyIndicator = false, isHighlighted = false, tipActivity }: PostCardProps) {
+const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighlighted = false, tipActivity }: PostCardProps) => {
   const router = useRouter();
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
@@ -554,31 +554,26 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
           )}
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-xs relative min-w-0" onClick={(e) => e.stopPropagation()}>
-            <Link 
-              href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
-              className="font-label-md text-on-surface hover:underline truncate max-w-[120px] shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {post.authorProfile?.displayName || "Anonymous User"}
-            </Link>
-            <span className="material-symbols-outlined text-[14px] text-primary-container shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
-            <Link 
-              href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`} 
-              className="font-mono text-[12px] text-on-surface-variant hover:underline truncate max-w-[90px] shrink"
-              onClick={(e) => e.stopPropagation()}
-            >
-              @{post.authorProfile?.username || formatAddress(post.authorPublicKey)}
-            </Link>
-            <span className="text-on-surface-variant text-sm px-xs shrink-0">•</span>
-            <span 
-              className="text-on-surface-variant shrink-0 whitespace-nowrap font-space-grotesk text-[13px] font-medium" 
-              suppressHydrationWarning
-            >
-              {formattedDate.text}
-            </span>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+              <Link 
+                href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`}
+                onClick={(e) => e.stopPropagation()}
+                className="font-label-md font-bold text-on-surface hover:underline truncate max-w-[140px] sm:max-w-[180px] shrink-0"
+              >
+                {post.authorProfile?.displayName || "Anonymous User"}
+              </Link>
+              <span className="material-symbols-outlined text-[14px] text-primary-container shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+              <span className="text-on-surface-variant text-sm px-xs shrink-0 hidden sm:inline">•</span>
+              <span 
+                className="text-on-surface-variant shrink-0 whitespace-nowrap font-space-grotesk text-[12px] sm:text-[13px] font-medium" 
+                suppressHydrationWarning
+              >
+                {formattedDate.text}
+              </span>
+            </div>
 
-            <div className="ml-auto relative flex items-center">
+            <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); setIsRepostMenuOpen(false); }}
                 className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
@@ -660,10 +655,10 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
                   <VideoPlayer url={post.imageUrl} />
                 </div>
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={post.imageUrl} 
                   alt="Post content" 
+                  loading="lazy"
                   className="rounded-xl border border-outline-variant max-w-full max-h-[600px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-surface-container-low mt-2 inline-block"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
                 />
@@ -692,9 +687,6 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
                 <div className="flex items-center gap-xs text-sm min-w-0">
                   <span className="font-bold text-on-surface truncate max-w-[130px]">
                     {localQuotePost.authorProfile?.displayName || "Unknown"}
-                  </span>
-                  <span className="text-on-surface-variant truncate max-w-[100px]">
-                    @{localQuotePost.authorProfile?.username || formatAddress(localQuotePost.authorPublicKey)}
                   </span>
                   <span className="text-on-surface-variant shrink-0">·</span>
                   <span 
@@ -837,4 +829,6 @@ export default function PostCard({ post, isDetail = false, hideReplyIndicator = 
       )}
     </article>
   );
-}
+};
+
+export default memo(PostCard);
