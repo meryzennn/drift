@@ -704,8 +704,12 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
 
               {localQuotePost.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-outline-variant mt-xs">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={localQuotePost.imageUrl} alt="" className="w-full max-h-[300px] object-cover" />
+                  {localQuotePost.imageUrl.toLowerCase().endsWith(".mp4") ? (
+                    <VideoPlayer url={localQuotePost.imageUrl} />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={localQuotePost.imageUrl} alt="" className="w-full max-h-[300px] object-cover" />
+                  )}
                 </div>
               )}
             </div>
