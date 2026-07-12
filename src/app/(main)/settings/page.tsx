@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"about" | "nft">("about");
   
   useEffect(() => {
     if (!connected || !publicKey) {
@@ -123,33 +124,102 @@ export default function SettingsPage() {
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-outline-variant p-4 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-headline-md font-bold text-on-surface">Settings</h1>
-          <p className="font-body-sm text-on-surface-variant">Customize your profile and featured NFTs.</p>
+          <p className="font-body-sm text-on-surface-variant">Customize your profile and app preferences.</p>
         </div>
+        {activeTab === "nft" && (
+          <button 
+            onClick={saveSettings}
+            disabled={saving}
+            className="px-6 py-2 bg-primary text-on-primary rounded-full font-label-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+          >
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">save</span>
+            )}
+            Save Changes
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-6 px-4 md:px-6 mt-4 border-b border-outline-variant">
         <button 
-          onClick={saveSettings}
-          disabled={saving}
-          className="px-6 py-2 bg-primary text-on-primary rounded-full font-label-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+          onClick={() => setActiveTab("nft")}
+          className={`pb-3 font-label-md transition-colors border-b-2 ${activeTab === "nft" ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}`}
         >
-          {saving ? (
-            <div className="w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            <span className="material-symbols-outlined text-[18px]">save</span>
-          )}
-          Save Changes
+          NFT Showcase
+        </button>
+        <button 
+          onClick={() => setActiveTab("about")}
+          className={`pb-3 font-label-md transition-colors border-b-2 ${activeTab === "about" ? "border-primary text-primary" : "border-transparent text-on-surface-variant hover:text-on-surface"}`}
+        >
+          About
         </button>
       </div>
 
       <div className="p-4 md:p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-headline-sm font-bold text-on-surface">Featured NFTs</h2>
-          <span className={`font-label-md px-3 py-1 rounded-full ${selectedIds.length === 10 ? 'bg-primary/20 text-primary' : 'bg-surface-container-highest text-on-surface-variant'}`}>
-            {selectedIds.length} / 10 Selected
-          </span>
-        </div>
-        
-        <p className="font-body-md text-on-surface-variant mb-6">
-          Select up to 10 NFTs to be displayed at the very front of your profile's NFT grid. The order you select them in is the order they will appear.
-        </p>
+        {activeTab === "about" && (
+          <div className="bg-surface-container-low rounded-xl border border-outline-variant p-6 space-y-6 w-full">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-primary text-on-primary rounded-full flex items-center justify-center shrink-0">
+                <span className="font-headline-lg font-black tracking-tighter text-[32px] leading-none pb-1">Drift</span>
+              </div>
+              <div>
+                <h2 className="font-headline-sm font-bold text-on-surface">Drift Protocol</h2>
+                <p className="font-body-md text-on-surface-variant">Version 1.0.0 (Beta)</p>
+              </div>
+            </div>
+            <div className="h-[1px] bg-outline-variant w-full"></div>
+            <div>
+              <h3 className="font-label-lg font-bold text-on-surface mb-2">Decentralized Social Network</h3>
+              <p className="font-body-md text-on-surface-variant w-full">
+                Drift is built on the Solana blockchain, empowering users with full ownership of their data and digital assets. We leverage Blink technology for seamless crypto interactions directly within your social feed.
+              </p>
+            </div>
+            
+            <div className="h-[1px] bg-outline-variant w-full"></div>
+            <div>
+              <h3 className="font-label-lg font-bold text-on-surface mb-4">Legal & Policies</h3>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a href="/terms" className="px-4 py-2 border border-outline-variant rounded-full text-center font-label-md hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">gavel</span>
+                  Terms of Service
+                </a>
+                <a href="/privacy" className="px-4 py-2 border border-outline-variant rounded-full text-center font-label-md hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">policy</span>
+                  Privacy Policy
+                </a>
+                <a href="/cookie" className="px-4 py-2 border border-outline-variant rounded-full text-center font-label-md hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">cookie</span>
+                  Cookie Policy
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "nft" && (
+          <>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h2 className="font-headline-sm font-bold text-on-surface">Featured NFTs</h2>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSelectedIds([])}
+                  disabled={selectedIds.length === 0}
+                  className="px-4 py-1.5 border border-error text-error rounded-full font-label-md hover:bg-error/10 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  Reset
+                </button>
+                <span className={`font-label-md px-3 py-1 rounded-full ${selectedIds.length === 10 ? 'bg-primary/20 text-primary' : 'bg-surface-container-highest text-on-surface-variant'}`}>
+                  {selectedIds.length} / 10 Selected
+                </span>
+              </div>
+            </div>
+            
+            <p className="font-body-md text-on-surface-variant mb-6">
+              Select up to 10 NFTs to be displayed at the very front of your profile's NFT grid. The order you select them in is the order they will appear. Don't forget to save your changes!
+            </p>
 
         {nfts.length === 0 ? (
           <div className="text-center py-xl bg-surface-container-low rounded-2xl border border-outline-variant">
@@ -205,6 +275,8 @@ export default function SettingsPage() {
             })}
           </div>
         )}
+        </>
+      )}
       </div>
     </div>
   );

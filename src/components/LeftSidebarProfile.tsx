@@ -14,25 +14,32 @@ interface UserProfile {
 export default function LeftSidebarProfile() {
   const { publicKey, connected } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (connected && publicKey) {
+      setIsLoading(true);
       const fetchProfile = async () => {
-        const { data } = await supabase
-          .from("users")
-          .select("username, display_name, avatar_url")
-          .eq("wallet_address", publicKey.toString())
-          .maybeSingle();
-        
-        if (data) {
-          setProfile(data as UserProfile);
+        try {
+          const { data } = await supabase
+            .from("users")
+            .select("username, display_name, avatar_url")
+            .eq("wallet_address", publicKey.toString())
+            .maybeSingle();
+          
+          if (data) {
+            setProfile(data as UserProfile);
+          }
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchProfile();
     } else {
       setProfile(null);
+      setIsLoading(false);
     }
   }, [connected, publicKey]);
 
@@ -50,7 +57,22 @@ export default function LeftSidebarProfile() {
     };
   }, [isDropdownOpen]);
 
-  if (!connected || !profile) return null;
+  if (!connected && !isLoading) return null;
+
+  if (isLoading || !profile) {
+    return (
+      <div className="mt-auto flex items-center justify-between gap-sm p-sm rounded-full bg-surface-container-low border border-outline-variant/30 animate-pulse">
+        <div className="flex items-center gap-sm flex-1">
+          <div className="w-10 h-10 rounded-full bg-surface-container-highest shrink-0"></div>
+          <div className="flex flex-col gap-1 w-full max-w-[120px]">
+            <div className="h-3.5 bg-surface-container-highest rounded-full w-3/4"></div>
+            <div className="h-2.5 bg-surface-container-highest rounded-full w-1/2"></div>
+          </div>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-surface-container-highest shrink-0"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-auto relative" ref={dropdownRef}>

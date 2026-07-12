@@ -3,6 +3,33 @@
 import { useState, useEffect } from "react";
 import NFTGridSkeleton from "./skeletons/NFTGridSkeleton";
 
+// Component to handle individual NFT image loading gracefully
+function NFTImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  return (
+    <>
+      {!loaded && !error && (
+        <div className="absolute inset-0 bg-surface-container-highest animate-pulse" />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={error ? 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSIjMmQyZDMzIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+' : src}
+        alt={alt}
+        className={`${className} ${loaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setError(true);
+          setLoaded(true);
+        }}
+      />
+    </>
+  );
+}
+
 interface NFTGridProps {
   walletAddress: string;
   featuredNfts?: string[];
@@ -104,12 +131,12 @@ export default function NFTGrid({ walletAddress, featuredNfts = [] }: NFTGridPro
 
   if (validNfts.length === 0) {
     return (
-      <div className="text-center py-2xl px-6">
+      <div className="text-center py-2xl px-6 w-full">
         <div className="bg-surface-container-high w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="material-symbols-outlined text-[40px] text-outline">image_not_supported</span>
         </div>
         <h3 className="font-headline-sm font-bold text-on-surface mb-2">No NFTs found</h3>
-        <p className="font-body-md text-on-surface-variant max-w-sm mx-auto">
+        <p className="font-body-md text-on-surface-variant w-full">
           This wallet doesn&apos;t seem to hold any NFTs on Solana mainnet.
         </p>
       </div>
@@ -131,16 +158,10 @@ export default function NFTGrid({ walletAddress, featuredNfts = [] }: NFTGridPro
               onClick={() => setSelectedNft(nft)}
             >
               <div className="aspect-square bg-surface-container-highest relative overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
+                <NFTImage 
                   src={imgUrl} 
                   alt={name} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  loading="lazy"
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSIjMmQyZDMzIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+';
-                  }}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 absolute inset-0"
                 />
               </div>
               <div className="p-3 flex flex-col gap-1">
@@ -200,14 +221,10 @@ export default function NFTGrid({ walletAddress, featuredNfts = [] }: NFTGridPro
 
             {/* Left: Image */}
             <div className="w-full md:w-1/2 bg-surface-container-highest relative flex items-center justify-center min-h-[300px] md:min-h-[500px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
+              <NFTImage 
                 src={selectedNft.content?.files?.[0]?.uri || selectedNft.content?.links?.image} 
                 alt={selectedNft.content?.metadata?.name || "NFT Image"}
                 className="w-full h-full object-contain absolute inset-0"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSIjMmQyZDMzIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+';
-                }}
               />
             </div>
 

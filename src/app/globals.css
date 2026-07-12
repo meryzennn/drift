@@ -177,5 +177,5 @@ body {
 html, body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-surface-container-highest) transparent;
-  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
