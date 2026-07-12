@@ -122,7 +122,7 @@ function ExploreContent() {
 
   return (
     <>
-      <div className="sticky top-16 md:top-0 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
+      <div className="sticky top-[64px] z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
         <div className="py-md">
           <h2 className="font-headline-md text-headline-md font-bold text-on-surface mb-md">Explore</h2>
           {/* Search bar */}

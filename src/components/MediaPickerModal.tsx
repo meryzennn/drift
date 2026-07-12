@@ -19,7 +19,9 @@ const GIPHY_CATEGORIES = [
 interface MediaPickerModalProps {
   type: "avatar" | "banner" | "post";
   maxMB: number;
-  onFile: (file: File) => void;
+  onFile?: (file: File) => void;
+  onFiles?: (files: File[]) => void;
+  allowMultiple?: boolean;
   onGif: (gifUrl: string) => void;
   onClose: () => void;
   defaultTab?: "upload" | "gif" | "nft";
@@ -27,7 +29,7 @@ interface MediaPickerModalProps {
   showNftTab?: boolean;
 }
 
-export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, defaultTab = "upload", hideTabs = false, showNftTab = false }: MediaPickerModalProps) {
+export default function MediaPickerModal({ type, maxMB, onFile, onFiles, allowMultiple = false, onGif, onClose, defaultTab = "upload", hideTabs = false, showNftTab = false }: MediaPickerModalProps) {
   const { publicKey } = useWallet();
   const [tab, setTab] = useState<"upload" | "gif" | "nft">(defaultTab);
   const [isDragging, setIsDragging] = useState(false);
@@ -105,38 +107,66 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
     fetchNfts();
   }, [tab, publicKey, nftsFetched]);
 
-  const validateAndHandle = useCallback((file: File) => {
+  const validateAndHandle = useCallback((files: FileList | File[]) => {
     setDragError("");
-    
     const validTypes = type === "post" ? VALID_POST_TYPES : VALID_IMAGE_TYPES;
     
-    if (!validTypes.includes(file.type)) {
-      setDragError(`Invalid format. Use JPG, PNG, GIF${type === "post" ? ", or MP4" : ""}.`);
-      return;
-    }
-    
-    if (file.type === "video/mp4") {
-      const maxVideoBytes = 30 * 1024 * 1024;
-      if (file.size > maxVideoBytes) {
-        setDragError(`Video too large. Max 30MB.`);
+    if (allowMultiple && onFiles) {
+      const validFiles: File[] = [];
+      let hasError = false;
+      
+      const filesArray = Array.from(files);
+      const isVideoArray = filesArray.some(f => f.type.startsWith("video/"));
+      const maxCount = isVideoArray ? 3 : 5;
+      
+      if (filesArray.length > maxCount) {
+        setDragError(`Maximum ${maxCount} files allowed.`);
         return;
       }
+      
+      for (const file of filesArray) {
+        if (!validTypes.includes(file.type)) {
+          setDragError(`Invalid format. Use JPG, PNG, GIF${type === "post" ? ", or MP4" : ""}.`);
+          return;
+        }
+        if (file.type === "video/mp4" && file.size > 30 * 1024 * 1024) {
+          setDragError(`Video too large. Max 30MB.`);
+          return;
+        } else if (!file.type.startsWith("video/") && file.size > maxMB * 1024 * 1024) {
+          setDragError(`Image too large. Max ${maxMB}MB.`);
+          return;
+        }
+        validFiles.push(file);
+      }
+      
+      if (validFiles.length > 0) {
+        onFiles(validFiles);
+      }
     } else {
-      const maxBytes = maxMB * 1024 * 1024;
-      if (file.size > maxBytes) {
+      const file = files[0];
+      if (!file) return;
+      
+      if (!validTypes.includes(file.type)) {
+        setDragError(`Invalid format. Use JPG, PNG, GIF${type === "post" ? ", or MP4" : ""}.`);
+        return;
+      }
+      if (file.type === "video/mp4" && file.size > 30 * 1024 * 1024) {
+        setDragError(`Video too large. Max 30MB.`);
+        return;
+      } else if (!file.type.startsWith("video/") && file.size > maxMB * 1024 * 1024) {
         setDragError(`Image too large. Max ${maxMB}MB.`);
         return;
       }
+      if (onFile) onFile(file);
     }
-    
-    onFile(file);
-  }, [maxMB, onFile, type]);
+  }, [maxMB, onFile, onFiles, allowMultiple, type]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) validateAndHandle(file);
+    if (e.dataTransfer.files?.length > 0) {
+      validateAndHandle(e.dataTransfer.files);
+    }
   };
 
   let title = "Select Media";
@@ -206,14 +236,23 @@ export default function MediaPickerModal({ type, maxMB, onFile, onGif, onClose, 
                   <span key={f} className="px-xs py-0.5 bg-surface-container-high border border-outline-variant rounded text-[11px] font-label-sm text-on-surface">{f}</span>
                 ))}
               </div>
-              <p className="font-body-sm text-on-surface-variant mt-xs">Max file size: <span className="text-on-surface font-label-sm">{maxMB}MB</span></p>
-              <p className="font-body-sm text-on-surface-variant">Target resolution: <span className="text-on-surface font-label-sm">{resolution}</span></p>
-              <p className="font-body-sm text-outline-variant text-[11px]">* GIFs are used directly · JPG/PNG will open cropper</p>
+              {type === "post" ? (
+                <>
+                  <p className="font-body-sm text-on-surface-variant mt-xs">Images: <span className="text-on-surface font-label-sm">Max 10MB</span> <span className="text-outline-variant text-[11px]">(Auto-compressed to ~1MB)</span></p>
+                  <p className="font-body-sm text-on-surface-variant mt-1">Videos: <span className="text-on-surface font-label-sm">Max 30MB</span> <span className="text-outline-variant text-[11px]">(Max 720p, 60s)</span></p>
+                </>
+              ) : (
+                <>
+                  <p className="font-body-sm text-on-surface-variant mt-xs">Max file size: <span className="text-on-surface font-label-sm">{maxMB}MB</span></p>
+                  <p className="font-body-sm text-on-surface-variant">Target resolution: <span className="text-on-surface font-label-sm">{resolution}</span></p>
+                  <p className="font-body-sm text-outline-variant text-[11px]">* GIFs are used directly · JPG/PNG will open cropper</p>
+                </>
+              )}
             </div>
 
             {dragError && <p className="font-body-sm text-error">{dragError}</p>}
 
-            <input ref={fileInputRef} type="file" accept={type === "post" ? ".jpg,.jpeg,.png,.gif,.mp4" : ".jpg,.jpeg,.png,.gif"} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndHandle(f); e.target.value = ""; }} />
+            <input ref={fileInputRef} type="file" multiple={allowMultiple} accept={type === "post" ? ".jpg,.jpeg,.png,.gif,.mp4" : ".jpg,.jpeg,.png,.gif"} className="hidden" onChange={(e) => { if (e.target.files) validateAndHandle(e.target.files); e.target.value = ""; }} />
           </div>
         )}
 

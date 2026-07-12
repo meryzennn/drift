@@ -4,7 +4,7 @@ import { Post } from "@/types";
 import { getFormattedDate } from "@/utils/dateUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
-import { useState, memo } from "react";
+import { useState, memo, useEffect, useRef, useMemo } from "react";
 import SendTipModal from "./SendTipModal";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
@@ -12,10 +12,13 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import QuoteModal from "./QuoteModal";
-import { useEffect } from "react";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import VideoPlayer from "./VideoPlayer";
 import TipLeaderboardModal from "./TipLeaderboardModal";
+import { MediaGrid } from "./MediaGrid";
+import { VideoSlider } from "./VideoSlider";
+import { parseEmbeds } from "@/utils/embedParser";
+import SocialEmbed from "./SocialEmbed";
 
 interface PostCardProps {
   post: Post;
@@ -35,6 +38,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRepostMenuOpen, setIsRepostMenuOpen] = useState(false);
@@ -55,8 +59,18 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   const [tipSummary, setTipSummary] = useState<{ total: number; tippers: { username: string; avatar_url?: string; amount: number }[] } | null>(null);
   const [isTipLeaderboardOpen, setIsTipLeaderboardOpen] = useState(false);
   const [isFetchingTips, setIsFetchingTips] = useState(false);
+  
+  const [menuPosition, setMenuPosition] = useState<'top' | 'bottom'>('bottom');
+  const [repostMenuPosition, setRepostMenuPosition] = useState<'top' | 'bottom'>('bottom');
 
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
+
+  const touchStartX = useRef<number | null>(null);
+
+  const postMediaUrls = useMemo(() => {
+    if (!post.imageUrl) return [];
+    return post.imageUrl.split(",");
+  }, [post.imageUrl]);
 
   const fetchTipSummary = async () => {
     if (tipSummary || isFetchingTips) return;
@@ -127,6 +141,39 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
     fetchTipSummary();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);
+
+  useEffect(() => {
+    if (!isImageViewerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && lightboxImageIndex < postMediaUrls.length - 1) {
+        setLightboxImageIndex(prev => prev + 1);
+      } else if (e.key === 'ArrowLeft' && lightboxImageIndex > 0) {
+        setLightboxImageIndex(prev => prev - 1);
+      } else if (e.key === 'Escape') {
+        setIsImageViewerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageViewerOpen, lightboxImageIndex, postMediaUrls.length]);
+
+  useEffect(() => {
+    const handleCloseMenus = () => {
+      setIsMenuOpen(false);
+      setIsRepostMenuOpen(false);
+    };
+
+    window.addEventListener("click", handleCloseMenus);
+    window.addEventListener("close-all-menus", handleCloseMenus);
+    // Listen to any scroll event in the document (capture phase) to close menus
+    window.addEventListener("scroll", handleCloseMenus, true);
+
+    return () => {
+      window.removeEventListener("click", handleCloseMenus);
+      window.removeEventListener("close-all-menus", handleCloseMenus);
+      window.removeEventListener("scroll", handleCloseMenus, true);
+    };
+  }, []);
 
   const handleTipClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -351,7 +398,16 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
         {/* Reposts */}
         <div className="relative shrink-0">
           <button 
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsRepostMenuOpen(!isRepostMenuOpen); setIsMenuOpen(false); setIsImageViewerMenuOpen(false); }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              e.preventDefault(); 
+              const wasOpen = isRepostMenuOpen;
+              window.dispatchEvent(new CustomEvent("close-all-menus"));
+              if (!wasOpen) {
+                setRepostMenuPosition(e.clientY > window.innerHeight - 250 ? 'top' : 'bottom');
+                setIsRepostMenuOpen(true); 
+              }
+            }}
             className={`flex items-center gap-xs transition-colors group ${isRepostedByMe ? "text-[#00BA7C]" : isViewer ? "hover:text-[#00BA7C]" : "hover:text-[#00BA7C]"}`}
           >
             <span className={`material-symbols-outlined text-[18px] rounded-full p-xs group-hover:bg-[#00BA7C]/10 ${isRepostedByMe ? "bg-[#00BA7C]/10" : ""}`}>repeat</span>
@@ -360,7 +416,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           
           {isRepostMenuOpen && (
             <div 
-              className={`absolute ${isViewer ? 'bottom-full mb-2' : 'bottom-10'} left-0 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100`}
+              className={`absolute ${repostMenuPosition === 'top' ? 'bottom-full mb-1' : 'bottom-10'} left-0 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-100`}
               onClick={(e) => e.stopPropagation()}
             >
               <button 
@@ -575,7 +631,15 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
 
             <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
               <button 
-                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); setIsRepostMenuOpen(false); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  const wasOpen = isMenuOpen;
+                  window.dispatchEvent(new CustomEvent("close-all-menus"));
+                  if (!wasOpen) {
+                    setMenuPosition(e.clientY > window.innerHeight - 250 ? 'top' : 'bottom');
+                    setIsMenuOpen(true); 
+                  }
+                }}
                 className="w-8 h-8 rounded-full hover:bg-surface-container-highest flex items-center justify-center text-on-surface-variant transition-colors"
               >
                 <span className="material-symbols-outlined text-[20px]">more_vert</span>
@@ -583,7 +647,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
               
               {isMenuOpen && (
                 <div 
-                  className="absolute right-0 top-10 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100"
+                  className={`absolute right-0 ${menuPosition === 'top' ? 'bottom-full mb-1' : 'top-10'} w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-100`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button 
@@ -640,29 +704,61 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
               </div>
             </div>
           ) : (
-            <div className="mt-xs font-body-md text-on-surface whitespace-pre-wrap break-words break-all" onClick={(e) => e.stopPropagation()}>
-              {renderContentWithLinks(displayContent)}
+            <div className="mt-xs flex flex-col gap-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="font-body-md text-on-surface whitespace-pre-wrap break-words break-all">
+                {renderContentWithLinks(parseEmbeds(displayContent).cleanContent)}
+              </div>
+              
+              {/* Embeds */}
+              {parseEmbeds(displayContent).embeds.map((embed, i) => (
+                <SocialEmbed key={`embed-${i}`} embed={embed} />
+              ))}
             </div>
           )}
           
           {post.imageUrl && (
             <div 
-              className="mt-sm relative group"
+              className="mt-sm relative group flex flex-col gap-2"
               onClick={(e) => e.stopPropagation()}
             >
-              {post.imageUrl.toLowerCase().endsWith(".mp4") ? (
-                <div className="w-full border border-outline-variant rounded-xl overflow-hidden mt-2">
-                  <VideoPlayer url={post.imageUrl} />
-                </div>
-              ) : (
-                <img 
-                  src={post.imageUrl} 
-                  alt="Post content" 
-                  loading="lazy"
-                  className="rounded-xl border border-outline-variant max-w-full max-h-[600px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-surface-container-low mt-2 inline-block"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsImageViewerOpen(true); }}
-                />
-              )}
+              {(() => {
+                const urls = post.imageUrl.split(",");
+                const isVideo = urls.some(u => u.toLowerCase().endsWith(".mp4"));
+                
+                if (isVideo && urls.length === 1) {
+                  return (
+                    <div className="w-full border border-outline-variant rounded-xl overflow-hidden">
+                      <VideoPlayer url={urls[0]} />
+                    </div>
+                  );
+                } else if (!isVideo && urls.length === 1) {
+                  const url = urls[0];
+                  return url.toLowerCase().endsWith(".gif") || url.toLowerCase().includes("giphy.com") ? (
+                    <img src={url} alt="GIF" className="rounded-xl border border-outline-variant max-w-full max-h-[600px] object-contain bg-surface-container-low inline-block" />
+                  ) : (
+                    <img 
+                      src={url} 
+                      alt="Post content" 
+                      loading="lazy"
+                      className="rounded-xl border border-outline-variant max-w-full max-h-[600px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-surface-container-low inline-block"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxImageIndex(0); setIsImageViewerOpen(true); }}
+                    />
+                  );
+                } else {
+                  return (
+                    <>
+                      <MediaGrid 
+                        urls={urls} 
+                        onImageClick={(idx) => {
+                          setLightboxImageIndex(idx);
+                          setIsImageViewerOpen(true);
+                        }} 
+                      />
+                      <VideoSlider urls={urls} />
+                    </>
+                  );
+                }
+              })()}
             </div>
           )}
           
@@ -699,17 +795,36 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
               </div>
               
               <div className="text-on-surface font-body-md break-words">
-                {localQuotePost.content}
+                {parseEmbeds(localQuotePost.content).cleanContent}
               </div>
 
+              {parseEmbeds(localQuotePost.content).embeds.length > 0 && (
+                <div className="flex flex-col gap-2 mt-xs">
+                  {parseEmbeds(localQuotePost.content).embeds.map((embed, i) => (
+                    <SocialEmbed key={`quote-embed-${i}`} embed={embed} />
+                  ))}
+                </div>
+              )}
+
               {localQuotePost.imageUrl && (
-                <div className="rounded-lg overflow-hidden border border-outline-variant mt-xs">
-                  {localQuotePost.imageUrl.toLowerCase().endsWith(".mp4") ? (
-                    <VideoPlayer url={localQuotePost.imageUrl} />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={localQuotePost.imageUrl} alt="" className="w-full max-h-[300px] object-cover" />
-                  )}
+                <div className="rounded-lg overflow-hidden border border-outline-variant mt-xs flex flex-col gap-1">
+                  {(() => {
+                    const urls = localQuotePost.imageUrl.split(",");
+                    const isVideo = urls.some(u => u.toLowerCase().endsWith(".mp4"));
+                    
+                    if (isVideo && urls.length === 1) {
+                      return <VideoPlayer url={urls[0]} />;
+                    } else if (!isVideo && urls.length === 1) {
+                      return <img src={urls[0]} alt="" className="w-full max-h-[300px] object-cover" />;
+                    } else {
+                      return (
+                        <>
+                          <MediaGrid urls={urls} />
+                          <VideoSlider urls={urls} />
+                        </>
+                      );
+                    }
+                  })()}
                 </div>
               )}
             </div>
@@ -815,13 +930,61 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           </div>
           
           {/* Image Container */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden bg-black px-2 md:px-6">
-            <img 
-              src={post.imageUrl} 
-              alt="Full view" 
-              className="max-w-full max-h-full object-contain select-none"
-              onClick={(e) => e.stopPropagation()}
-            />
+          <div 
+            className="flex-1 flex items-center justify-center overflow-hidden bg-black px-2 md:px-6 relative group"
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const diff = touchStartX.current - e.changedTouches[0].clientX;
+              if (Math.abs(diff) > 50) {
+                if (diff > 0 && lightboxImageIndex < postMediaUrls.length - 1) {
+                  setLightboxImageIndex(prev => prev + 1);
+                } else if (diff < 0 && lightboxImageIndex > 0) {
+                  setLightboxImageIndex(prev => prev - 1);
+                }
+              }
+              touchStartX.current = null;
+            }}
+          >
+            {postMediaUrls.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (lightboxImageIndex > 0) setLightboxImageIndex(prev => prev - 1); }}
+                  className={`absolute left-2 md:left-6 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors z-20 ${lightboxImageIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}
+                >
+                  <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_left</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (lightboxImageIndex < postMediaUrls.length - 1) setLightboxImageIndex(prev => prev + 1); }}
+                  className={`absolute right-2 md:right-6 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors z-20 ${lightboxImageIndex === postMediaUrls.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}
+                >
+                  <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_right</span>
+                </button>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                  {postMediaUrls.map((_, i) => (
+                    <div key={i} className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-colors ${i === lightboxImageIndex ? 'bg-white' : 'bg-white/30'}`} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {postMediaUrls[lightboxImageIndex]?.toLowerCase().endsWith(".mp4") ? (
+              <video 
+                src={postMediaUrls[lightboxImageIndex]} 
+                className="max-w-full max-h-full object-contain"
+                controls
+                autoPlay
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <img 
+                src={postMediaUrls[lightboxImageIndex]} 
+                alt="Full view" 
+                className="max-w-full max-h-full object-contain select-none transition-transform duration-300"
+                draggable={false}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
           
           {/* Bottom Bar - Solid Black */}

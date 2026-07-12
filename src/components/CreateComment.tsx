@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import MediaPickerModal from "./MediaPickerModal";
 import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
-import { uploadFileToR2 } from "@/utils/upload";
+import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
 import imageCompression from "browser-image-compression";
+import { parseEmbeds } from "@/utils/embedParser";
+import SocialEmbed from "./SocialEmbed";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
   const [content, setContent] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,8 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
   const [cursorPos, setCursorPos] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { embeds } = useMemo(() => parseEmbeds(content), [content]);
 
   const { suggestions, showDropdown, handleSelect } = useMentionAutocomplete(
     content,
@@ -54,28 +58,29 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!content.trim() && !file && !gifUrl) || !publicKey) return;
+    if ((!content.trim() && files.length === 0 && !gifUrl) || !publicKey) return;
     
     setLoading(true);
     let mediaUrl = null;
 
     try {
-      if (file) {
-        let fileToUpload: File | Blob = file;
-        
-        if (file.type.startsWith("image/")) {
-          try {
-            const options = {
-              maxSizeMB: 1,
-              maxWidthOrHeight: 1920,
-              useWebWorker: true,
-            };
-            fileToUpload = await imageCompression(file, options);
-          } catch (error) {
-            console.error("Image compression error:", error);
+      if (files.length > 0) {
+        const uploadPromises = files.map(async (f) => {
+          let fileToUpload: File | Blob = f;
+          
+          if (f.type.startsWith("image/")) {
+            try {
+              fileToUpload = await imageCompression(f, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+            } catch (error) {
+              console.error("Image compression error:", error);
+              throw new Error("Failed to compress image. Upload aborted.");
+            }
           }
-        }
-        mediaUrl = await uploadFileToR2(fileToUpload, file.name, fileToUpload.type || file.type);
+          return uploadFileToR2(fileToUpload, f.name, fileToUpload.type || f.type);
+        });
+
+        const urls = await Promise.all(uploadPromises);
+        mediaUrl = urls.join(",");
       } else if (gifUrl) {
         mediaUrl = gifUrl;
       }
@@ -121,7 +126,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
       }
 
       setContent("");
-      setFile(null);
+      setFiles([]);
       setGifUrl(null);
       toast.success("Reply posted!");
       router.refresh(); 
@@ -134,14 +139,19 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     }
   };
 
-  const validateFile = (selectedFile: File) => {
+  const validateFile = async (selectedFile: File) => {
     if (selectedFile.type.startsWith("video/")) {
       if (selectedFile.type !== "video/mp4") {
         toast.error("Only MP4 videos are allowed.");
         return false;
       }
-      if (selectedFile.size > 30 * 1024 * 1024) {
-        toast.error("Video size must be less than 30MB.");
+      
+      toast.loading("Validating video...", { id: "video-validate" });
+      const errorMsg = await validateVideoFile(selectedFile);
+      toast.dismiss("video-validate");
+      
+      if (errorMsg) {
+        toast.error(errorMsg);
         return false;
       }
     } else if (selectedFile.type.startsWith("image/")) {
@@ -153,28 +163,58 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     return true;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (validateFile(selectedFile)) {
-        setFile(selectedFile);
-        setGifUrl(null);
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const validFiles: File[] = [];
+    for (const f of selectedFiles) {
+      const isValid = await validateFile(f);
+      if (isValid) validFiles.push(f);
     }
+    
+    if (validFiles.length > 0) {
+      let isError = false;
+      let maxAllowedCount = 5;
+      
+      setFiles(prev => {
+        const combined = [...prev, ...validFiles];
+        const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+        const maxCount = isVideoArray ? 3 : 5;
+        if (combined.length > maxCount) {
+          isError = true;
+          maxAllowedCount = maxCount;
+          return combined.slice(0, maxCount);
+        }
+        return combined;
+      });
+      
+      if (isError) {
+        toast.error(`Maximum ${maxAllowedCount} files allowed.`);
+      }
+      setGifUrl(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleMediaPickerFile = (pickedFile: File) => {
-    if (validateFile(pickedFile)) {
-      setFile(pickedFile);
-      setGifUrl(null);
-      setIsMediaPickerOpen(false);
-    }
+  const handleMediaPickerFile = (pickedFiles: File[]) => {
+    setFiles(prev => {
+      const combined = [...prev, ...pickedFiles];
+      const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+      const maxCount = isVideoArray ? 3 : 5;
+      if (combined.length > maxCount) {
+        toast.error(`Maximum ${maxCount} files allowed.`);
+        return combined.slice(0, maxCount);
+      }
+      return combined;
+    });
+    setGifUrl(null);
+    setIsMediaPickerOpen(false);
   };
 
   const handleMediaPickerGif = (url: string) => {
     setGifUrl(url);
-    setFile(null);
+    setFiles([]);
     setIsMediaPickerOpen(false);
   };
 
@@ -194,7 +234,23 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             toast.error("Image must be less than 10MB");
             return;
           }
-          setFile(pastedFile);
+          
+          let isError = false;
+          let maxAllowedCount = 5;
+          setFiles(prev => {
+            const combined = [...prev, pastedFile];
+            const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+            const maxCount = isVideoArray ? 3 : 5;
+            if (combined.length > maxCount) {
+              isError = true;
+              maxAllowedCount = maxCount;
+              return combined.slice(0, maxCount);
+            }
+            return combined;
+          });
+          if (isError) {
+            toast.error(`Maximum ${maxAllowedCount} files allowed.`);
+          }
           setGifUrl(null);
           e.preventDefault();
           break;
@@ -206,7 +262,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if ((content.trim() || file || gifUrl) && !loading && content.length <= 255) {
+      if ((content.trim() || files.length > 0 || gifUrl) && !loading && content.length <= 255) {
         handleSubmit(e as unknown as React.FormEvent);
       }
     }
@@ -272,17 +328,38 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             </div>
           )}
 
-          {(file || gifUrl) && (
+          {files.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-sm mb-xs relative">
+              {files.map((f, i) => {
+                const url = URL.createObjectURL(f);
+                return (
+                  <div key={i} className="relative shrink-0">
+                    {f.type === "video/mp4" ? (
+                      <video src={url} className="h-[120px] rounded-lg border border-outline-variant bg-black object-contain" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt="Preview" className="h-[120px] rounded-lg border border-outline-variant object-cover" />
+                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => setFiles(files.filter((_, index) => index !== i))}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">close</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {gifUrl && (
             <div className="relative inline-block mt-sm mb-xs">
-              {file && file.type === "video/mp4" ? (
-                <video src={URL.createObjectURL(file)} controls className="max-h-48 rounded-lg border border-outline-variant bg-black" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={file ? URL.createObjectURL(file) : gifUrl!} alt="Preview" className="max-h-48 rounded-lg border border-outline-variant" />
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={gifUrl} alt="Preview" className="max-h-48 rounded-lg border border-outline-variant" />
               <button 
                 type="button" 
-                onClick={() => { setFile(null); setGifUrl(null); }}
+                onClick={() => setGifUrl(null)}
                 className="absolute top-xs right-xs bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
               >
                 <span className="material-symbols-outlined text-[16px]">close</span>
@@ -290,43 +367,58 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             </div>
           )}
 
-          <div className="flex justify-between items-center mt-sm">
-            <div className="flex gap-sm text-primary">
-              <input 
-                type="file" 
-                accept="image/*,video/mp4" 
-                className="hidden" 
-                ref={fileInputRef}
-                onChange={handleFileChange}
-              />
-              <button 
-                type="button" 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
-              >
-                <span className="material-symbols-outlined text-[20px]">image</span>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => setIsMediaPickerOpen(true)}
-                className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
-              >
-                <span className="material-symbols-outlined text-[20px]">gif_box</span>
-              </button>
+          {embeds.length > 0 && (
+            <div className="flex flex-col gap-2 mt-sm mb-xs">
+              {embeds.map((embed, i) => (
+                <div key={i} className="relative">
+                  <SocialEmbed embed={embed} />
+                  <div className="absolute inset-0 bg-transparent z-10" />
+                </div>
+              ))}
             </div>
-            <div className="flex flex-col items-end gap-1">
+          )}
+
+          <div className="flex flex-col gap-2 mt-sm pt-sm border-t border-outline-variant">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-sm text-primary">
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*,video/mp4"
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[20px]">image</span>
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsMediaPickerOpen(true)}
+                  className="p-xs hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[20px]">gif_box</span>
+                </button>
+              </div>
               <div className="flex items-center gap-md">
                 <span className={`font-body-sm ${content.length >= 240 ? 'text-error' : 'text-on-surface-variant'}`}>
                   {content.length}/255
                 </span>
                 <button
                   type="submit"
-                  disabled={(!content.trim() && !file && !gifUrl) || loading || content.length > 255}
+                  disabled={(!content.trim() && files.length === 0 && !gifUrl) || loading || content.length > 255}
                   className="bg-primary-container text-on-primary-container px-lg py-1.5 rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50"
                 >
                   {loading ? "Replying..." : "Reply"}
                 </button>
               </div>
+            </div>
+            <div className="flex justify-between items-center px-1">
+              <span className="text-[10px] text-on-surface-variant/50 hidden sm:block">Max: 10MB Image, 30MB Video (720p, 60s)</span>
               <span className="text-[10px] text-on-surface-variant/70 hidden sm:block">Press Enter to reply, Shift+Enter for new line</span>
             </div>
           </div>
@@ -337,7 +429,8 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
         <MediaPickerModal
           type="post"
           maxMB={10}
-          onFile={handleMediaPickerFile}
+          onFiles={handleMediaPickerFile}
+          allowMultiple={true}
           onGif={handleMediaPickerGif}
           onClose={() => setIsMediaPickerOpen(false)}
           defaultTab="gif"
