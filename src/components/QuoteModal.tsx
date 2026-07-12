@@ -156,8 +156,17 @@ export default function QuoteModal({ isOpen, onClose, quotedPost, onSuccess }: Q
               </div>
               {quotedPost.imageUrl && (
                 <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[300px] mt-xs flex items-center justify-center bg-black/20">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={quotedPost.imageUrl} alt="" className="w-full h-full object-contain" />
+                  {quotedPost.imageUrl.toLowerCase().endsWith(".mp4") ? (
+                    <video 
+                      src={quotedPost.imageUrl} 
+                      className="w-full h-full object-contain pointer-events-none" 
+                      muted 
+                      playsInline
+                    />
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={quotedPost.imageUrl} alt="" className="w-full h-full object-contain" />
+                  )}
                 </div>
               )}
             </div>
