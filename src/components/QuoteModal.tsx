@@ -7,6 +7,11 @@ import toast from "react-hot-toast";
 import { Post } from "@/types";
 import { getFormattedDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
+import { parseEmbeds } from "@/utils/embedParser";
+import SocialEmbed from "./SocialEmbed";
+import { MediaGrid } from "./MediaGrid";
+import { VideoSlider } from "./VideoSlider";
+import { renderContentWithLinks } from "@/utils/textParserUtils";
 
 interface QuoteModalProps {
   isOpen: boolean;
@@ -152,21 +157,45 @@ export default function QuoteModal({ isOpen, onClose, quotedPost, onSuccess }: Q
                 </span>
               </div>
               <div className="font-body-sm text-on-surface line-clamp-3">
-                {quotedPost.content}
+                {renderContentWithLinks(parseEmbeds(quotedPost.content).cleanContent)}
               </div>
+              
+              {/* Embeds */}
+              {parseEmbeds(quotedPost.content).embeds.map((embed, i) => (
+                <div key={`embed-${i}`} className="scale-[0.85] origin-top-left -mb-4">
+                  <SocialEmbed embed={embed} />
+                </div>
+              ))}
+
               {quotedPost.imageUrl && (
-                <div className="rounded-lg overflow-hidden border border-outline-variant max-h-[300px] mt-xs flex items-center justify-center bg-black/20">
-                  {quotedPost.imageUrl.toLowerCase().endsWith(".mp4") ? (
-                    <video 
-                      src={quotedPost.imageUrl} 
-                      className="w-full h-full object-contain pointer-events-none" 
-                      muted 
-                      playsInline
-                    />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={quotedPost.imageUrl} alt="" className="w-full h-full object-contain" />
-                  )}
+                <div className="rounded-lg overflow-hidden border border-outline-variant mt-xs bg-black/20">
+                  {(() => {
+                    const urls = quotedPost.imageUrl.split(",");
+                    const isVideo = urls.some(u => u.toLowerCase().endsWith(".mp4"));
+                    
+                    if (isVideo && urls.length === 1) {
+                      return (
+                        <video 
+                          src={urls[0]} 
+                          className="w-full h-full object-contain pointer-events-none" 
+                          muted 
+                          playsInline
+                        />
+                      );
+                    } else if (!isVideo && urls.length === 1) {
+                      return (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={urls[0]} alt="" className="w-full max-h-[300px] object-contain" />
+                      );
+                    } else {
+                      return (
+                        <div className="p-xs">
+                          <MediaGrid urls={urls} />
+                          <VideoSlider urls={urls} />
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               )}
             </div>

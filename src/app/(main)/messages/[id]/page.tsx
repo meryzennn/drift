@@ -597,8 +597,8 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   return (
     <>
     <div 
-      className="fixed top-[64px] bottom-[calc(64px+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex flex-col bg-surface-container-lowest md:relative md:top-auto md:bottom-auto md:left-auto md:right-auto md:z-auto md:flex-none md:h-[calc(100vh-152px)] lg:h-[calc(100vh-112px)] w-full border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" 
-      style={{ minWidth: 'min(100%, 500px)' }}
+      className="fixed top-[64px] bottom-[calc(64px+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex flex-col bg-surface-container-lowest md:relative md:top-auto md:bottom-auto md:left-auto md:right-auto md:z-auto md:flex-none md:h-[calc(100vh-88px)] w-full border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" 
+      style={{ minWidth: 'min(100%, 500px)', maxWidth: '800px' }}
     >
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
@@ -989,7 +989,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
       </div>,
       document.body
     )}
-    {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+    {lightboxSrc && <ImageLightbox src={lightboxSrc as string} onClose={() => setLightboxSrc(null)} />}
     {mounted && showConfetti && createPortal(
       <div className="fixed inset-0 z-[99998] pointer-events-none overflow-hidden" aria-hidden>
         {Array.from({ length: 80 }).map((_, i) => {
