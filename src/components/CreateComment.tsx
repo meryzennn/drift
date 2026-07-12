@@ -17,6 +17,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
   const router = useRouter();
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,12 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     };
     fetchAvatar();
   }, [publicKey]);
+
+  useEffect(() => {
+    const urls = files.map(f => URL.createObjectURL(f));
+    setPreviewUrls(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [files]);
 
   if (!connected) {
     return (
@@ -331,7 +338,8 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
           {files.length > 0 && (
             <div className="flex gap-2 overflow-x-auto hide-scrollbar mt-sm mb-xs relative">
               {files.map((f, i) => {
-                const url = URL.createObjectURL(f);
+                const url = previewUrls[i];
+                if (!url) return null;
                 return (
                   <div key={i} className="relative shrink-0">
                     {f.type === "video/mp4" ? (

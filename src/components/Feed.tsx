@@ -12,11 +12,12 @@ import { Virtuoso } from "react-virtuoso";
 import { useRef } from "react";
 
 interface FeedItem {
-  type: "post" | "tip_activity";
+  type: "post" | "activity";
+  activityType?: "tip" | "repost";
   post: Post;
   sortKey: string;
-  tipper?: { username?: string; avatar_url?: string; wallet: string };
-  tipAmount?: number;
+  actor?: { username?: string; avatar_url?: string; wallet: string };
+  amount?: number;
 }
 
 interface FeedProps {
@@ -62,10 +63,10 @@ export default function Feed({ posts }: FeedProps) {
       setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
       return;
     }
-    fetchTipActivity();
+    fetchFollowerActivity();
   }, [publicKey, internalPosts]);
 
-  const fetchTipActivity = async () => {
+  const fetchFollowerActivity = async () => {
     if (!publicKey) return;
     setLoadingTipActivity(true);
 
@@ -81,61 +82,70 @@ export default function Feed({ posts }: FeedProps) {
         return;
       }
 
-      const { data: tipNotifs } = await supabase
+      const { data: notifs } = await supabase
         .from("notifications")
         .select(`
           actor_wallet,
           post_id,
+          type,
           amount,
           created_at,
           actor:users!notifications_actor_wallet_fkey(username, avatar_url)
         `)
-        .eq("type", "tip")
+        .in("type", ["tip", "repost"])
         .in("actor_wallet", followedWallets)
         .order("created_at", { ascending: false })
         .limit(50);
 
-      if (!tipNotifs || tipNotifs.length === 0) {
+      if (!notifs || notifs.length === 0) {
         setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
         return;
       }
 
-      const postIds = [...new Set(tipNotifs.map((t: any) => t.post_id).filter(Boolean))];
-      const { data: tippedPostsData } = await supabase
+      const postIds = [...new Set(notifs.map((t: any) => t.post_id).filter(Boolean))];
+      const { data: activePostsData } = await supabase
         .from("posts")
         .select(POST_SELECT_QUERY)
         .in("id", postIds);
 
-      const tippedPostsMap = new Map<string, Post>();
-      (tippedPostsData || []).forEach((p: any) => {
-        tippedPostsMap.set(p.id, mapPostData(p));
+      const activePostsMap = new Map<string, Post>();
+      (activePostsData || []).forEach((p: any) => {
+        activePostsMap.set(p.id, mapPostData(p));
       });
 
       const seenPostIds = new Set<string>();
-      const tipItems: FeedItem[] = [];
+      const activityItems: FeedItem[] = [];
 
-      for (const notif of tipNotifs) {
+      for (const notif of notifs) {
         if (!notif.post_id || seenPostIds.has(notif.post_id)) continue;
-        const post = tippedPostsMap.get(notif.post_id);
+        const post = activePostsMap.get(notif.post_id);
         if (!post) continue;
 
+        let activityPost = { ...post };
+        if (notif.type === "repost") {
+          activityPost.isRepost = true;
+          activityPost.repostedBy = (notif.actor as any)?.username || notif.actor_wallet;
+          activityPost.reposterWallet = notif.actor_wallet;
+        }
+
         seenPostIds.add(notif.post_id);
-        tipItems.push({
-          type: "tip_activity",
-          post,
+        activityItems.push({
+          type: "activity",
+          activityType: notif.type as "tip" | "repost",
+          post: activityPost,
           sortKey: notif.created_at,
-          tipper: {
+          actor: {
             username: (notif.actor as any)?.username,
             avatar_url: (notif.actor as any)?.avatar_url,
             wallet: notif.actor_wallet,
           },
-          tipAmount: notif.amount,
+          amount: notif.amount,
         });
       }
 
       const merged: FeedItem[] = [
         ...internalPosts.map(p => ({ type: "post" as const, post: p, sortKey: p.createdAt })),
-        ...tipItems,
+        ...activityItems,
       ];
 
       merged.sort((a, b) => new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime());
@@ -220,14 +230,14 @@ export default function Feed({ posts }: FeedProps) {
 
     return (
       <div className="pb-md">
-        {item.type === "tip_activity" ? (
+        {item.type === "activity" && item.activityType === "tip" ? (
           <PostCard
             post={item.post}
             tipActivity={{
-              tipperUsername: item.tipper?.username,
-              tipperWallet: item.tipper?.wallet || "",
-              tipperAvatar: item.tipper?.avatar_url,
-              amount: item.tipAmount || 0,
+              tipperUsername: item.actor?.username,
+              tipperWallet: item.actor?.wallet || "",
+              tipperAvatar: item.actor?.avatar_url,
+              amount: item.amount || 0,
             }}
           />
         ) : (
