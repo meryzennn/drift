@@ -166,14 +166,6 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length === 0) return;
-    
-    // Check limits
-    const isVideoArray = selectedFiles.some(f => f.type.startsWith("video/"));
-    const maxCount = isVideoArray ? 3 : 5;
-    if (selectedFiles.length > maxCount) {
-      toast.error(`Maximum ${maxCount} files allowed.`);
-      return;
-    }
 
     const validFiles: File[] = [];
     for (const f of selectedFiles) {
@@ -182,14 +174,40 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
     }
     
     if (validFiles.length > 0) {
-      setFiles(validFiles);
+      let isError = false;
+      let maxAllowedCount = 5;
+      
+      setFiles(prev => {
+        const combined = [...prev, ...validFiles];
+        const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+        const maxCount = isVideoArray ? 3 : 5;
+        if (combined.length > maxCount) {
+          isError = true;
+          maxAllowedCount = maxCount;
+          return combined.slice(0, maxCount);
+        }
+        return combined;
+      });
+      
+      if (isError) {
+        toast.error(`Maximum ${maxAllowedCount} files allowed.`);
+      }
       setGifUrl(null);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleMediaPickerFile = (pickedFiles: File[]) => {
-    setFiles(pickedFiles);
+    setFiles(prev => {
+      const combined = [...prev, ...pickedFiles];
+      const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+      const maxCount = isVideoArray ? 3 : 5;
+      if (combined.length > maxCount) {
+        toast.error(`Maximum ${maxCount} files allowed.`);
+        return combined.slice(0, maxCount);
+      }
+      return combined;
+    });
     setGifUrl(null);
     setIsMediaPickerOpen(false);
   };
@@ -216,7 +234,23 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
             toast.error("Image must be less than 10MB");
             return;
           }
-          setFiles([...files, pastedFile]);
+          
+          let isError = false;
+          let maxAllowedCount = 5;
+          setFiles(prev => {
+            const combined = [...prev, pastedFile];
+            const isVideoArray = combined.some(f => f.type.startsWith("video/"));
+            const maxCount = isVideoArray ? 3 : 5;
+            if (combined.length > maxCount) {
+              isError = true;
+              maxAllowedCount = maxCount;
+              return combined.slice(0, maxCount);
+            }
+            return combined;
+          });
+          if (isError) {
+            toast.error(`Maximum ${maxAllowedCount} files allowed.`);
+          }
           setGifUrl(null);
           e.preventDefault();
           break;
@@ -350,6 +384,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
                 <input 
                   type="file" 
                   multiple 
+                  accept="image/*,video/mp4"
                   className="hidden" 
                   ref={fileInputRef}
                   onChange={handleFileChange}

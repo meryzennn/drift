@@ -29,4 +29,4 @@ const query = `
     )
   )
 `;
-supabase.from('posts').select(query).then(res => console.log(JSON.stringify(res.error || res.data[0] || 'Success', null, 2)));
+supabase.from('posts').select(query).order('created_at', { ascending: false }).limit(10).then(res => console.log(JSON.stringify(res.error || res.data, null, 2)));

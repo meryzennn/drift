@@ -46,11 +46,11 @@ export default function SocialEmbed({ embed }: SocialEmbedProps) {
   // Load FB SDK and parse
   useEffect(() => {
     if (embed.type === 'facebook' && resolvedFbUrl && shouldRender && fbContainerRef.current) {
-      setIsLoading(false); 
-      
       const parseFB = () => {
         if (window.FB && fbContainerRef.current) {
-          window.FB.XFBML.parse(fbContainerRef.current);
+          window.FB.XFBML.parse(fbContainerRef.current, () => {
+            setIsLoading(false);
+          });
         }
       };
 
@@ -126,7 +126,7 @@ export default function SocialEmbed({ embed }: SocialEmbedProps) {
     >
       {shouldRender ? (
         <>
-          {isLoading && embed.type !== 'facebook' && (
+          {isLoading && (
             <div className={`absolute inset-0 bg-surface-container-low flex flex-col items-center justify-center gap-sm z-10`}>
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span className="font-label-sm text-outline">Loading video...</span>

@@ -5,10 +5,10 @@ import ImageLightbox from "./ImageLightbox";
 
 interface MediaGridProps {
   urls: string[];
+  onImageClick?: (index: number) => void;
 }
 
-export function MediaGrid({ urls }: MediaGridProps) {
-  const [lightboxIndex, setLightboxIndex] = useState(-1);
+export function MediaGrid({ urls, onImageClick }: MediaGridProps) {
   const images = urls.filter(url => !url.toLowerCase().endsWith(".mp4"));
 
   if (images.length === 0) return null;
@@ -24,7 +24,7 @@ export function MediaGrid({ urls }: MediaGridProps) {
           "grid-cols-6 grid-rows-2"
         }`}
         style={{ 
-          maxHeight: images.length === 1 ? "500px" : "300px" 
+          height: images.length === 1 ? "500px" : "300px" 
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -44,7 +44,7 @@ export function MediaGrid({ urls }: MediaGridProps) {
             <div 
               key={i} 
               className={`relative bg-surface-container-highest cursor-pointer hover:opacity-90 transition-opacity ${colSpan} ${rowSpan}`}
-              onClick={() => setLightboxIndex(i)}
+              onClick={() => onImageClick && onImageClick(urls.indexOf(url))}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
@@ -56,13 +56,6 @@ export function MediaGrid({ urls }: MediaGridProps) {
           );
         })}
       </div>
-
-      {lightboxIndex >= 0 && (
-        <ImageLightbox 
-          imageUrl={images[lightboxIndex]} 
-          onClose={() => setLightboxIndex(-1)} 
-        />
-      )}
     </>
   );
 }

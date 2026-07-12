@@ -4,7 +4,7 @@ import { Post } from "@/types";
 import { getFormattedDate } from "@/utils/dateUtils";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { sendTip } from "@/utils/solanaUtils";
-import { useState, memo } from "react";
+import { useState, memo, useEffect, useRef, useMemo } from "react";
 import SendTipModal from "./SendTipModal";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
@@ -12,7 +12,6 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import QuoteModal from "./QuoteModal";
-import { useEffect } from "react";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import VideoPlayer from "./VideoPlayer";
 import TipLeaderboardModal from "./TipLeaderboardModal";
@@ -39,7 +38,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   const { publicKey, sendTransaction, connected } = useWallet();
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-  const [lightboxImageUrl, setLightboxImageUrl] = useState("");
+  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRepostMenuOpen, setIsRepostMenuOpen] = useState(false);
@@ -65,6 +64,13 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   const [repostMenuPosition, setRepostMenuPosition] = useState<'top' | 'bottom'>('bottom');
 
   const isOwner = connected && publicKey?.toString() === post.authorPublicKey;
+
+  const touchStartX = useRef<number | null>(null);
+
+  const postMediaUrls = useMemo(() => {
+    if (!post.imageUrl) return [];
+    return post.imageUrl.split(",");
+  }, [post.imageUrl]);
 
   const fetchTipSummary = async () => {
     if (tipSummary || isFetchingTips) return;
@@ -135,6 +141,21 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
     fetchTipSummary();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);
+
+  useEffect(() => {
+    if (!isImageViewerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && lightboxImageIndex < postMediaUrls.length - 1) {
+        setLightboxImageIndex(prev => prev + 1);
+      } else if (e.key === 'ArrowLeft' && lightboxImageIndex > 0) {
+        setLightboxImageIndex(prev => prev - 1);
+      } else if (e.key === 'Escape') {
+        setIsImageViewerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageViewerOpen, lightboxImageIndex, postMediaUrls.length]);
 
   useEffect(() => {
     const handleCloseMenus = () => {
@@ -720,13 +741,19 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
                       alt="Post content" 
                       loading="lazy"
                       className="rounded-xl border border-outline-variant max-w-full max-h-[600px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-surface-container-low inline-block"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxImageUrl(url); setIsImageViewerOpen(true); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLightboxImageIndex(0); setIsImageViewerOpen(true); }}
                     />
                   );
                 } else {
                   return (
                     <>
-                      <MediaGrid urls={urls} />
+                      <MediaGrid 
+                        urls={urls} 
+                        onImageClick={(idx) => {
+                          setLightboxImageIndex(idx);
+                          setIsImageViewerOpen(true);
+                        }} 
+                      />
                       <VideoSlider urls={urls} />
                     </>
                   );
@@ -903,13 +930,61 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           </div>
           
           {/* Image Container */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden bg-black px-2 md:px-6">
-            <img 
-              src={lightboxImageUrl || post.imageUrl} 
-              alt="Full view" 
-              className="max-w-full max-h-full object-contain select-none"
-              onClick={(e) => e.stopPropagation()}
-            />
+          <div 
+            className="flex-1 flex items-center justify-center overflow-hidden bg-black px-2 md:px-6 relative group"
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const diff = touchStartX.current - e.changedTouches[0].clientX;
+              if (Math.abs(diff) > 50) {
+                if (diff > 0 && lightboxImageIndex < postMediaUrls.length - 1) {
+                  setLightboxImageIndex(prev => prev + 1);
+                } else if (diff < 0 && lightboxImageIndex > 0) {
+                  setLightboxImageIndex(prev => prev - 1);
+                }
+              }
+              touchStartX.current = null;
+            }}
+          >
+            {postMediaUrls.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (lightboxImageIndex > 0) setLightboxImageIndex(prev => prev - 1); }}
+                  className={`absolute left-2 md:left-6 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors z-20 ${lightboxImageIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}
+                >
+                  <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_left</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (lightboxImageIndex < postMediaUrls.length - 1) setLightboxImageIndex(prev => prev + 1); }}
+                  className={`absolute right-2 md:right-6 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/80 transition-colors z-20 ${lightboxImageIndex === postMediaUrls.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}
+                >
+                  <span className="material-symbols-outlined text-[28px] md:text-[32px]">chevron_right</span>
+                </button>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                  {postMediaUrls.map((_, i) => (
+                    <div key={i} className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-colors ${i === lightboxImageIndex ? 'bg-white' : 'bg-white/30'}`} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {postMediaUrls[lightboxImageIndex]?.toLowerCase().endsWith(".mp4") ? (
+              <video 
+                src={postMediaUrls[lightboxImageIndex]} 
+                className="max-w-full max-h-full object-contain"
+                controls
+                autoPlay
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <img 
+                src={postMediaUrls[lightboxImageIndex]} 
+                alt="Full view" 
+                className="max-w-full max-h-full object-contain select-none transition-transform duration-300"
+                draggable={false}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
           
           {/* Bottom Bar - Solid Black */}
