@@ -18,8 +18,21 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState<number | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else if (gifUrl) {
+      setPreviewUrl(gifUrl);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [file, gifUrl]);
 
   const { suggestions, showDropdown, handleSelect } = useMentionAutocomplete(
     content,
@@ -255,13 +268,13 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
             </div>
           )}
           
-          {(file || gifUrl) && (
-            <div className="relative inline-block mt-sm mb-xs">
+          {previewUrl && (
+            <div className="relative inline-block mt-sm mb-xs max-w-full w-fit">
               {file && file.type === "video/mp4" ? (
-                <video src={URL.createObjectURL(file)} controls className="max-h-48 rounded-lg border border-outline-variant bg-black" />
+                <video src={previewUrl} controls className="max-h-[300px] max-w-full object-contain rounded-lg border border-outline-variant bg-black" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={file ? URL.createObjectURL(file) : gifUrl!} alt="Preview" className="max-h-48 rounded-lg border border-outline-variant" />
+                <img src={previewUrl} alt="Preview" className="max-h-[300px] max-w-full object-contain rounded-lg border border-outline-variant" />
               )}
               <button 
                 type="button" 

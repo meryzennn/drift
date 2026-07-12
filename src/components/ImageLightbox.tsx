@@ -97,7 +97,10 @@ export default function ImageLightbox({ src, onClose }: ImageLightboxProps) {
   return createPortal(
     <div
       className="fixed inset-0 z-[99999] bg-black/95 flex items-center justify-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { 
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onClose(); 
+      }}
     >
       {/* Toolbar */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent z-10">

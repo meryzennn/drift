@@ -20,7 +20,7 @@ export default function MobileBottomNav() {
   return (
     <nav className="lg:hidden fixed bottom-0 w-full bg-background/90 backdrop-blur-md border-t border-outline-variant flex justify-around items-center h-16 pb-safe z-50">
       {links.map((link) => {
-        const isActive = pathname === link.href;
+        const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link 
             key={link.href} 
@@ -33,8 +33,7 @@ export default function MobileBottomNav() {
               
               if (isActive) {
                 e.preventDefault();
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                router.refresh();
+                window.scrollTo(0, 0);
               }
             }}
             className={`flex flex-col items-center justify-center w-full h-full transition-colors relative ${

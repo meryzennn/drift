@@ -21,7 +21,7 @@ export default function NavLinks() {
   return (
     <nav className="flex flex-col gap-sm">
       {links.map((link) => {
-        const isActive = pathname === link.href;
+        const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link 
             key={link.href} 
@@ -34,8 +34,7 @@ export default function NavLinks() {
               
               if (isActive) {
                 e.preventDefault();
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                router.refresh();
+                window.scrollTo(0, 0);
               }
             }}
             className={`flex items-center gap-md px-md py-sm rounded-full cursor-pointer active:opacity-80 transition-all ${
