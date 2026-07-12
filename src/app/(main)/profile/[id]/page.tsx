@@ -424,10 +424,12 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
       {!isOwner && (
         <button 
           onClick={() => router.back()}
-          className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors border border-white/20 shadow-lg"
+          className="group absolute top-4 left-4 z-10 w-9 h-9 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 border border-white/20 hover:border-primary shadow-lg"
           title="Go Back"
         >
-          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          <span className="material-symbols-outlined text-[18px] text-white group-hover:text-primary transition-colors duration-200 group-hover:-translate-x-0.5 inline-block transition-transform">
+            arrow_back
+          </span>
         </button>
       )}
       

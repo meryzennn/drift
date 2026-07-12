@@ -145,6 +145,14 @@ export default function CustomWalletButton() {
               View on Explorer
             </a>
             <Link 
+              href="/leaderboard"
+              onClick={() => setIsDropdownOpen(false)}
+              className="lg:hidden flex items-center gap-sm p-sm rounded-md hover:bg-[#27272a] text-on-surface transition-colors font-label-md w-full text-left cursor-pointer border-none bg-transparent"
+            >
+              <span className="material-symbols-outlined text-[18px]">leaderboard</span>
+              Leaderboard
+            </Link>
+            <Link 
               href="/settings"
               onClick={() => setIsDropdownOpen(false)}
               className="flex items-center gap-sm p-sm rounded-md hover:bg-[#27272a] text-on-surface transition-colors font-label-md w-full text-left cursor-pointer border-none bg-transparent"

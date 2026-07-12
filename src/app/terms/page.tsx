@@ -4,9 +4,14 @@ export default function TermsPage() {
   return (
     <div className="max-w-4xl mx-auto py-2xl px-6 font-mono text-on-surface pb-24 md:pb-8">
       <div className="mb-8">
-        <Link href="/settings?tab=about" className="inline-flex items-center gap-2 px-4 py-2 bg-surface-container hover:bg-surface-container-high rounded-full font-label-md transition-colors">
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Back to About
+        <Link 
+          href="/settings?tab=about" 
+          className="group w-9 h-9 flex items-center justify-center rounded-full border border-outline-variant hover:border-primary hover:bg-primary/10 transition-all duration-200 active:scale-90 shrink-0"
+          title="Back to About"
+        >
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-colors duration-200 group-hover:-translate-x-0.5 inline-block transition-transform">
+            arrow_back
+          </span>
         </Link>
       </div>
       <h1 className="text-2xl sm:text-4xl font-black mb-8 text-primary">Terms of Service (Straight Talk)</h1>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { supabase } from "@/utils/supabase";
 import toast from "react-hot-toast";
@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const ITEMS_PER_PAGE = 20;
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { publicKey, connected } = useWallet();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -428,5 +428,17 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   );
 }
