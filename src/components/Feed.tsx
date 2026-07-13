@@ -298,7 +298,7 @@ export default function Feed({ posts }: FeedProps) {
         data={feedItems}
         computeItemKey={(index, item) => `${item.type}-${item.post.id}-${item.sortKey}`}
         endReached={loadMorePosts}
-        overscan={400}
+        overscan={2000}
         itemContent={itemContent}
         components={{ Footer }}
         initialTopMostItemIndex={getCache().index[pathname] || 0}

@@ -2,6 +2,10 @@
 
 import React, { useRef, useEffect, useState, memo } from "react";
 
+// Persisted at module level so resolved Facebook URLs don't get re-fetched
+// (and re-jitter the layout) every time a card mounts/unmounts while scrolling.
+const fbResolveCache = new Map<string, { resolvedUrl: string; aspectRatio: string }>();
+
 interface SocialEmbedProps {
   embed: {
     type: 'youtube' | 'facebook';
@@ -16,10 +20,17 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ytShouldRender, setYtShouldRender] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  // Initialize with the parser's best guess to prevent layout shift while fetching metadata
-  const initialIsVertical = embed.type === 'facebook' && (embed.isVertical === true || embed.originalUrl.includes('/reel/') || embed.originalUrl.includes('/share/r/'));
+
+  // Initialize with cached data if we have it, otherwise the parser's best guess,
+  // to prevent layout shift while fetching metadata.
+  const cachedInit = embed.type === 'facebook' ? fbResolveCache.get(embed.originalUrl) : undefined;
+  const initialIsVertical = embed.type === 'facebook' && (
+    cachedInit
+      ? cachedInit.aspectRatio.split('/').map(Number).reduce((_, h, i, arr) => i === 1 && h > arr[0], false)
+      : (embed.isVertical === true || embed.originalUrl.includes('/reel/') || embed.originalUrl.includes('/share/r/'))
+  );
   const [fbIframeSrc, setFbIframeSrc] = useState<string | null>(null);
-  const [fbAspect, setFbAspect] = useState<string>(initialIsVertical ? '9/16' : '16/9');
+  const [fbAspect, setFbAspect] = useState<string>(cachedInit?.aspectRatio ?? (initialIsVertical ? '9/16' : '16/9'));
   const [isFbVertical, setIsFbVertical] = useState(initialIsVertical);
 
   // Resolve Facebook URL → get canonical URL + real video aspect ratio
@@ -27,8 +38,6 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
     if (embed.type !== 'facebook') return;
 
     const originalUrl = embed.originalUrl;
-    const needsResolve =
-      originalUrl.includes('/share/r/') || originalUrl.includes('/share/v/');
 
     // Builds the plugin URL with an explicit height derived from the real
     // aspect ratio, so Facebook doesn't fall back to its own default ratio
@@ -41,16 +50,30 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
       return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&width=${width}&height=${height}&autoplay=0&mute=1`;
     };
 
+    // Already resolved before (e.g. re-mounted while scrolling) → use cache,
+    // skip the fetch and skip the resize jitter entirely.
+    const cached = fbResolveCache.get(originalUrl);
+    if (cached) {
+      const [w, h] = cached.aspectRatio.split('/').map(Number);
+      setFbAspect(cached.aspectRatio);
+      setIsFbVertical(h > w);
+      setFbIframeSrc(buildIframeSrc(cached.resolvedUrl, cached.aspectRatio));
+      return;
+    }
+
+    const needsResolve =
+      originalUrl.includes('/share/r/') || originalUrl.includes('/share/v/');
+
     if (needsResolve) {
       fetch(`/api/resolve-fb?url=${encodeURIComponent(originalUrl)}`)
         .then(r => r.json())
         .then(data => {
           const resolvedUrl = data.resolvedUrl ?? originalUrl;
           const aspect = data.aspectRatio ?? '16/9';
+          fbResolveCache.set(originalUrl, { resolvedUrl, aspectRatio: aspect });
           const [w, h] = aspect.split('/').map(Number);
-          const vertical = h > w;
           setFbAspect(aspect);
-          setIsFbVertical(vertical);
+          setIsFbVertical(h > w);
           setFbIframeSrc(buildIframeSrc(resolvedUrl, aspect));
         })
         .catch(() => {
@@ -62,10 +85,9 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
           setFbIframeSrc(buildIframeSrc(originalUrl, aspect));
         });
     } else {
-      // Direct link — still resolve via our API to get the real aspect ratio
-      // instead of guessing from the URL pattern alone.
       const vertical = originalUrl.includes('/reel/') || embed.isVertical === true;
       const aspect = vertical ? '9/16' : '16/9';
+      fbResolveCache.set(originalUrl, { resolvedUrl: originalUrl, aspectRatio: aspect });
       setIsFbVertical(vertical);
       setFbAspect(aspect);
       setFbIframeSrc(buildIframeSrc(originalUrl, aspect));
