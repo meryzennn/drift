@@ -453,13 +453,15 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           >
             <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
           </button>
-          <button
-            onClick={handleTipClick}
-            className={`flex items-center gap-xs border rounded-full px-sm py-xs transition-colors ${isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary-container/10"}`}
-          >
-            <span className="material-symbols-outlined text-[15px]">send</span>
-            <span className="hidden sm:inline font-label-sm text-[12px]">Tip</span>
-          </button>
+          {!isOwner && (
+            <button
+              onClick={handleTipClick}
+              className={`flex items-center gap-xs border rounded-full px-sm py-xs transition-colors ${isViewer ? "text-white/80 border-white/30 hover:bg-white/10" : "text-primary-container border-outline-variant hover:bg-primary-container/10"}`}
+            >
+              <span className="material-symbols-outlined text-[15px]">send</span>
+              <span className="hidden sm:inline font-label-sm text-[12px]">Tip</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

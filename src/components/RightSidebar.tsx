@@ -28,10 +28,10 @@ export default function RightSidebar() {
   }, []);
 
   return (
-    <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-0 pb-lg h-screen overflow-y-auto hide-scrollbar relative">
+    <aside className="hidden xl:flex flex-col gap-lg w-[320px] shrink-0 sticky top-[64px] pb-lg h-[calc(100vh-64px)] overflow-y-auto hide-scrollbar relative">
       
       {/* Search Bar - Sticky at top */}
-      <div className="sticky top-0 pt-[64px] pb-xs bg-background z-20">
+      <div className="sticky top-0 pt-md pb-xs bg-background z-20">
         <SearchBar fullWidth />
       </div>
 
