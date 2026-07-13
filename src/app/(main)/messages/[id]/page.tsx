@@ -44,6 +44,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [loading, setLoading] = useState(true);
   
   const [mySecret, setMySecret] = useState<string | null>(null);
@@ -68,14 +69,17 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
   const [deletePrompt, setDeletePrompt] = useState<{ singleId?: string, multiple?: boolean } | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const confettiTimerRef = useRef<NodeJS.Timeout | null>(null);
   const swipeThreshold = 60;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatAreaRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef<{ id: string, time: number } | null>(null);
+  const isTypingRef = useRef(false); // Track if we already sent a typing broadcast
 
   // Check Authsession key
   useEffect(() => {
@@ -332,17 +336,27 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
+    // Auto-resize textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+    // Auto-scroll to latest message while typing
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     
     if (channelRef.current && publicKey) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { user: publicKey.toString(), isTyping: true }
-      });
+      // Only broadcast "isTyping: true" once per typing session, not every keystroke
+      if (!isTypingRef.current) {
+        isTypingRef.current = true;
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { user: publicKey.toString(), isTyping: true }
+        });
+      }
       
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       
       typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
         if (channelRef.current) {
           channelRef.current.send({
             type: 'broadcast',
@@ -351,6 +365,20 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           });
         }
       }, 2000);
+    }
+  };
+
+  const handleDmKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+      if (isTouchDevice) return; // new line on mobile
+      e.preventDefault();
+      if (inputText.trim()) {
+        handleSend(inputText);
+        // Reset height after send
+        const target = e.currentTarget;
+        setTimeout(() => { target.style.height = 'auto'; }, 0);
+      }
     }
   };
 
@@ -476,6 +504,10 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     const encMedia = mediaUrl ? encryptMessage(mediaUrl, mySecret, otherPubkey) : null;
     
     setInputText("");
+    // Reset textarea height back to single row
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     const currentReplyId = replyingTo?.id;
     setReplyingTo(null);
 
@@ -598,7 +630,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
     <>
     <div 
       className="fixed top-[64px] bottom-[calc(64px+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex flex-col bg-surface-container-lowest md:relative md:top-auto md:bottom-auto md:left-auto md:right-auto md:z-auto md:flex-none md:h-[calc(100vh-88px)] w-full border-0 md:border border-outline-variant/50 rounded-none md:rounded-2xl overflow-hidden md:shadow-lg mx-auto" 
-      style={{ minWidth: 'min(100%, 500px)', maxWidth: '800px' }}
+      style={{ maxWidth: '800px' }}
     >
       {/* Header */}
       <div className="h-16 px-4 flex items-center gap-4 bg-surface-container-low border-b border-outline-variant/50 shrink-0">
@@ -639,8 +671,18 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         )}
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3">
+      {/* Chat Area Wrapper */}
+      <div className="flex-1 relative flex flex-col min-h-0 bg-surface-container-lowest overflow-hidden">
+        <div 
+          ref={chatAreaRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 flex flex-col gap-3"
+        onScroll={() => {
+          const el = chatAreaRef.current;
+          if (!el) return;
+          const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+          setShowScrollBtn(distFromBottom > 150);
+        }}
+      >
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
@@ -689,7 +731,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                     )}
 
                     <div 
-                      className={`flex flex-col max-w-[75%] relative ${isMine ? "items-end" : "items-start"}`}
+                      className={`flex flex-col max-w-[75%] min-w-0 relative ${isMine ? "items-end" : "items-start"}`}
                       onTouchStart={(e) => handleTouchStart(msg, e)}
                       onTouchMove={(e) => handleTouchMove(msg, e)}
                       onTouchEnd={() => handleTouchEnd(msg)}
@@ -742,7 +784,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
 
                       {/* Unified Message Bubble — only for non-tip messages */}
                       {!msg.is_tip && (msg.reply_to_id || msg.decryptedMedia || msg.decryptedText) && (
-                        <div className={`flex flex-col rounded-2xl text-[15px] overflow-hidden ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
+                        <div className={`flex flex-col w-full min-w-0 rounded-2xl text-[15px] overflow-hidden ${isMine ? "bg-primary text-on-primary rounded-tr-sm" : "bg-surface-container text-on-surface rounded-tl-sm border border-outline-variant/50"}`}>
                           
                           {/* Reply Snippet */}
                           {msg.reply_to_id && (
@@ -753,7 +795,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
                             >
-                              <div className={`font-bold text-xs mb-0.5 ${isMine ? "text-on-primary" : "text-primary"}`}>
+                              <div className={`font-bold text-xs mb-0.5 truncate ${isMine ? "text-on-primary" : "text-primary"}`}>
                                 {(() => {
                                   const rMsg = messages.find(m => m.id === msg.reply_to_id);
                                   if (!rMsg) return "Unknown";
@@ -786,7 +828,7 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
                           
                           {/* Text */}
                           {msg.decryptedText && (
-                            <div className="px-3 py-2">
+                            <div className="px-3 py-2 break-all whitespace-pre-wrap overflow-hidden">
                               {msg.decryptedText}
                             </div>
                           )}
@@ -823,6 +865,23 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
           </>
         )}
       </div>
+      
+      {/* Scroll to Bottom Button */}
+        {showScrollBtn && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                setShowScrollBtn(false);
+              }}
+              className="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant shadow-lg flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary hover:border-primary transition-all duration-200 active:scale-90"
+              title="Scroll to bottom"
+            >
+              <span className="material-symbols-outlined text-[20px]">keyboard_arrow_down</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Input Area */}
       <div className="p-3 bg-surface-container-low border-t border-outline-variant shrink-0 flex flex-col gap-2">
@@ -856,28 +915,31 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
               </div>
             )}
             <form 
-              onSubmit={(e) => { e.preventDefault(); handleSend(inputText); }}
-              className="flex items-center gap-2 bg-surface-container border border-outline-variant/50 rounded-full pl-4 pr-1 py-1 overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full"
+              onSubmit={(e) => { e.preventDefault(); if (inputText.trim()) { handleSend(inputText); } }}
+              className="flex items-center gap-2 bg-surface-container border border-outline-variant/60 rounded-3xl px-3 py-2 focus-within:border-primary/70 transition-all w-full"
             >
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={inputText}
-                onChange={(e) => handleInputChange(e as any)}
-                onPaste={handlePaste}
+                onChange={handleInputChange}
+                onKeyDown={handleDmKeyDown}
+                onPaste={handlePaste as any}
                 placeholder="Message..."
-                className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant focus:outline-none min-w-0"
+                rows={1}
+                className="flex-1 bg-transparent border-none text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none min-w-0 resize-none max-h-[120px] leading-[1.5] py-0.5 text-sm"
+                style={{ height: 'auto', overflowY: 'auto' }}
               />
-              <div className="flex items-center gap-1 shrink-0">
-                <button type="button" onClick={() => setIsMediaOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+              <div className="flex items-center shrink-0">
+                <button type="button" onClick={() => setIsMediaOpen(true)} className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-primary hover:bg-primary/10 transition-colors">
                   <span className="material-symbols-outlined text-[20px]">image</span>
                 </button>
-                <button type="button" onClick={() => setIsTipOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors">
+                <button type="button" onClick={() => setIsTipOpen(true)} className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-primary hover:bg-primary/10 transition-colors">
                   <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
                 </button>
                 <button 
                   type="submit" 
                   disabled={!inputText.trim()}
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white bg-primary hover:bg-primary/90 disabled:opacity-50 transition-colors ml-1"
+                  className="w-8 h-8 ml-1 rounded-full flex items-center justify-center text-white bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:bg-surface-container-highest disabled:text-on-surface-variant transition-all duration-200 active:scale-90"
                 >
                   <span className="material-symbols-outlined text-[18px]">send</span>
                 </button>

@@ -101,19 +101,40 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   };
 
   useEffect(() => {
+    // We check if it's liked/reposted by me, AND we fetch fresh counts 
+    // to ensure they don't revert to stale values when using the browser back button
     if (publicKey) {
       const checkInteractions = async () => {
-        const [{ data: likeData }, { data: repostData }] = await Promise.all([
+        const [{ data: likeData }, { data: repostData }, { data: statsData }] = await Promise.all([
           supabase.from("post_likes").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
           supabase.from("reposts").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
+          supabase.from("posts").select("likes, reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single(),
         ]);
-        if (likeData) setIsLikedByMe(true);
-        if (repostData) setIsRepostedByMe(true);
+        
+        setIsLikedByMe(!!likeData);
+        setIsRepostedByMe(!!repostData);
+
+        if (statsData) {
+          setLocalLikesCount(statsData.likes || 0);
+          const freshReposts = (statsData.reposts?.[0]?.count ?? 0) + (statsData.quotes?.[0]?.count ?? 0);
+          setLocalRepostsCount(freshReposts);
+        }
       };
       checkInteractions();
     } else {
       setIsLikedByMe(false);
       setIsRepostedByMe(false);
+      
+      // Still fetch fresh stats even if not logged in
+      const fetchStats = async () => {
+        const { data: statsData } = await supabase.from("posts").select("likes, reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single();
+        if (statsData) {
+          setLocalLikesCount(statsData.likes || 0);
+          const freshReposts = (statsData.reposts?.[0]?.count ?? 0) + (statsData.quotes?.[0]?.count ?? 0);
+          setLocalRepostsCount(freshReposts);
+        }
+      };
+      fetchStats();
     }
   }, [publicKey, post.id]);
 
@@ -470,21 +491,50 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
   const confirmDelete = async () => {
     setIsActionLoading(true);
     try {
-      // 1. Try to delete the media from R2 if it exists
+      // 1. Fetch any media attached to direct replies so we can clean them up too
+      let allUrlsToDelete: string[] = [];
+      
       if (post.imageUrl) {
-        try {
-          await fetch("/api/delete-media", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: post.imageUrl }),
+        allUrlsToDelete.push(...post.imageUrl.split(","));
+      }
+
+      try {
+        const { data: repliesMedia } = await supabase
+          .from("posts")
+          .select("media_url")
+          .eq("reply_to_post_id", post.id)
+          .not("media_url", "is", null);
+
+        if (repliesMedia && repliesMedia.length > 0) {
+          repliesMedia.forEach(reply => {
+            if (reply.media_url) {
+              allUrlsToDelete.push(...reply.media_url.split(","));
+            }
           });
+        }
+      } catch (err) {
+        console.error("Failed to fetch replies media for cleanup:", err);
+      }
+
+      // 2. Delete all collected media from R2
+      if (allUrlsToDelete.length > 0) {
+        try {
+          await Promise.all(
+            allUrlsToDelete.map(url => 
+              fetch("/api/delete-media", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ imageUrl: url }),
+              })
+            )
+          );
         } catch (err) {
           console.error("Failed to delete media from R2:", err);
           // We continue deleting the post even if media deletion fails
         }
       }
 
-      // 2. Delete the post from Supabase
+      // 3. Delete the post from Supabase (this will CASCADE delete the replies from the DB)
       const { error } = await supabase.from("posts").delete().eq("id", post.id);
       if (error) throw error;
       
@@ -582,11 +632,10 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           )}
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-start justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 min-w-0">
               <Link 
                 href={`/profile/${post.authorProfile?.username || post.authorPublicKey}`}
-                onClick={(e) => e.stopPropagation()}
                 className="font-label-md font-bold text-on-surface hover:underline truncate max-w-[140px] sm:max-w-[180px] shrink-0"
               >
                 {post.authorProfile?.displayName || "Anonymous User"}
@@ -601,7 +650,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
               </span>
             </div>
 
-            <div className="relative shrink-0 flex items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="relative shrink-0 flex items-center">
               <button 
                 onClick={(e) => { 
                   e.stopPropagation(); 
