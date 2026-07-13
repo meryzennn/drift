@@ -10,6 +10,7 @@ import PostSkeleton from "./skeletons/PostSkeleton";
 import { useRouter, usePathname } from "next/navigation";
 import { Virtuoso } from "react-virtuoso";
 import { useRef } from "react";
+import { resolveFbEmbed } from "@/lib/fbEmbedResolver";
 
 interface FeedItem {
   type: "post" | "activity";
@@ -31,6 +32,14 @@ const getCache = () => {
   }
   return (window as any)._feedCache;
 };
+
+// NOTE: adjust this if your Post type stores the Facebook embed URL under a
+// different field name (or you parse it out of post.content instead).
+function extractFbUrl(post: Post): string | null {
+  const url = (post as any).embedUrl as string | undefined;
+  if (url && url.includes('facebook.com')) return url;
+  return null;
+}
 
 export default function Feed({ posts }: FeedProps) {
   const { publicKey } = useWallet();
@@ -65,6 +74,19 @@ export default function Feed({ posts }: FeedProps) {
     }
     fetchFollowerActivity();
   }, [publicKey, internalPosts]);
+
+  // Prefetch Facebook embed aspect ratios in the background as soon as posts
+  // land, so by the time Virtuoso mounts+measures the item, the real height
+  // is already known — avoids the scrollHeight jump mid-scroll.
+  useEffect(() => {
+    const fbUrls = internalPosts
+      .map(extractFbUrl)
+      .filter((url): url is string => !!url);
+
+    fbUrls.forEach(url => {
+      resolveFbEmbed(url); // fire-and-forget, just warms the cache
+    });
+  }, [internalPosts]);
 
   const fetchFollowerActivity = async () => {
     if (!publicKey) return;
