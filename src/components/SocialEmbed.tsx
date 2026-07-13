@@ -41,7 +41,7 @@ export default function SocialEmbed({ embed }: SocialEmbedProps) {
     } else if (embed.type === 'facebook') {
       setResolvedFbUrl(embed.originalUrl);
     }
-  }, [embed]);
+  }, [embed.type, embed.originalUrl]);
 
   // Load FB SDK and parse
   useEffect(() => {
