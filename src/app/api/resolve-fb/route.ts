@@ -25,7 +25,14 @@ export async function GET(request: Request) {
       if (videoMatch && videoMatch[1]) {
         resolvedUrl = `https://www.facebook.com/reel/${videoMatch[1]}`;
       }
-      return NextResponse.json({ resolvedUrl });
+      return NextResponse.json(
+        { resolvedUrl },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=43200",
+          },
+        }
+      );
     }
 
     return NextResponse.json({ error: "Could not find og:url" }, { status: 404 });
