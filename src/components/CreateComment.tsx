@@ -12,7 +12,7 @@ import imageCompression from "browser-image-compression";
 import { parseEmbeds } from "@/utils/embedParser";
 import SocialEmbed from "./SocialEmbed";
 
-export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: () => void }) {
+export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: (newPostId?: string) => void }) {
   const { connected, publicKey } = useWallet();
   const router = useRouter();
   const [content, setContent] = useState("");
@@ -136,8 +136,7 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
       setFiles([]);
       setGifUrl(null);
       toast.success("Reply posted!");
-      router.refresh(); 
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(data.id);
     } catch (error) {
       console.error("Error creating comment:", error);
       toast.error("Failed to post reply.");

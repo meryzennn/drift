@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, memo } from "react";
 
 interface VideoPlayerProps {
   url: string;
 }
 
-export default function VideoPlayer({ url }: VideoPlayerProps) {
+const VideoPlayer = ({ url }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -189,9 +189,10 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
           e.stopPropagation();
           e.preventDefault();
         }}
-        autoPlay
         muted={isMuted}
         loop
+        playsInline
+        preload="metadata"
       />
 
       {/* Loading Spinner */}
@@ -262,3 +263,5 @@ export default function VideoPlayer({ url }: VideoPlayerProps) {
     </div>
   );
 }
+
+export default memo(VideoPlayer);

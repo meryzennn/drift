@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     }
 
     const extension = filename.split('.').pop() || 'bin';
-    const uniqueFilename = `${crypto.randomUUID()}.${extension}`;
+    // Prepend timestamp so files sort chronologically in Cloudflare dashboard
+    const uniqueFilename = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
     const bucketName = process.env.R2_BUCKET_NAME || "";
 
     const command = new PutObjectCommand({

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 import { useWallet } from "@solana/wallet-adapter-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import bs58 from "bs58";
 import { deriveChatKeypair } from "@/utils/encryption";
 import toast from "react-hot-toast";
 import MessagesSkeleton from "@/components/skeletons/MessagesSkeleton";
+import { AnimatePresence, motion } from "framer-motion";
+
+const PAGE_SIZE = 10;
 
 export default function MessagesHub() {
   const { publicKey, signMessage } = useWallet();
@@ -19,33 +21,17 @@ export default function MessagesHub() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = backward
 
   useEffect(() => {
-    // Check if we have the derived secret key in memory/sessionStorage
     const savedSecret = sessionStorage.getItem(`drift_chat_secret_${publicKey?.toString()}`);
     if (savedSecret) {
       setIsAuthenticated(true);
     }
   }, [publicKey]);
 
-  useEffect(() => {
-    if (publicKey && isAuthenticated) {
-      fetchConversations();
-      
-      const sub = supabase
-        .channel('conversations_updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
-          fetchConversations();
-        })
-        .subscribe();
-        
-      return () => {
-        supabase.removeChannel(sub);
-      };
-    }
-  }, [publicKey, isAuthenticated]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!publicKey) return;
     try {
       const wallet = publicKey.toString();
@@ -86,7 +72,26 @@ export default function MessagesHub() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicKey]);
+
+  useEffect(() => {
+    if (publicKey && isAuthenticated) {
+      fetchConversations();
+      
+      const sub = supabase
+        .channel('conversations_updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+          fetchConversations();
+          // New message — jump back to page 1 so it's visible at top
+          setPage(1);
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(sub);
+      };
+    }
+  }, [publicKey, isAuthenticated, fetchConversations]);
 
   const handleAuthenticate = async () => {
     if (!publicKey || !signMessage) {
@@ -96,17 +101,10 @@ export default function MessagesHub() {
     
     setAuthLoading(true);
     try {
-      // 1. Sign deterministic message
       const message = new TextEncoder().encode("Authenticate Drift E2EE Chat\n\nSigning this message allows Drift to generate a secure encryption key for your Direct Messages. It does not cost any SOL.");
       const signature = await signMessage(message);
-      
-      // 2. Derive Keypair
       const keypair = deriveChatKeypair(signature);
-      
-      // 3. Save secret to session storage
       sessionStorage.setItem(`drift_chat_secret_${publicKey.toString()}`, keypair.secretKey);
-      
-      // 4. Update user profile with public key if not already set
       await supabase
         .from('users')
         .update({ chat_pubkey: keypair.publicKey })
@@ -120,6 +118,14 @@ export default function MessagesHub() {
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  const totalPages = Math.ceil(conversations.length / PAGE_SIZE);
+  const paginated = conversations.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const goToPage = (next: number) => {
+    setDirection(next > page ? 1 : -1);
+    setPage(next);
   };
 
   if (!publicKey) {
@@ -170,16 +176,17 @@ export default function MessagesHub() {
   }
 
   return (
-    <div className="w-full min-w-[100%] max-w-2xl mx-auto py-6 min-h-screen" style={{ minWidth: 'min(100%, 500px)' }}>
-      <div className="w-full min-w-[100%] flex items-center justify-between mb-8">
-        <h1 className="w-full font-headline-lg font-bold text-on-surface flex items-center gap-3">
+    <div className="w-full max-w-2xl mx-auto flex flex-col" style={{ minWidth: 'min(100%, 500px)' }}>
+      {/* Sticky Header */}
+      <div className="sticky top-[64px] z-10 bg-background border-b border-outline-variant/50 py-4 mb-4">
+        <h1 className="font-headline-lg font-bold text-on-surface flex items-center gap-3">
           <span className="material-symbols-outlined text-primary text-[32px]">forum</span>
           Messages
         </h1>
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-3 w-full min-w-full">
+        <div className="flex flex-col gap-3 w-full">
           {[1, 2, 3, 4, 5].map(i => (
             <MessagesSkeleton key={i} />
           ))}
@@ -191,54 +198,104 @@ export default function MessagesHub() {
           <p className="font-body-md text-on-surface-variant w-full mx-auto">Go to a mutual follower's profile to start chatting.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 w-full min-w-full">
-          {conversations.map(convo => {
-            const isUser1 = convo.user1_wallet === publicKey.toString();
-            const otherUser = isUser1 ? convo.user2 : convo.user1;
-            
-            return (
-              <Link 
-                key={convo.id}
-                href={`/messages/${convo.id}`}
-                className="w-full min-w-full flex items-center gap-4 p-4 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/50 rounded-2xl transition-all group"
-              >
-                <div className="w-14 h-14 rounded-full bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant">
-                  {otherUser.avatar_url ? (
-                    <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center font-bold text-lg bg-primary/20 text-primary">
-                      {otherUser.display_name?.slice(0, 2).toUpperCase() || "U"}
-                    </div>
-                  )}
-                </div>
+        <>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={page}
+              initial={{ opacity: 0, x: direction * 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction * -30 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="flex flex-col gap-3 w-full"
+            >
+              {paginated.map(convo => {
+                const isUser1 = convo.user1_wallet === publicKey.toString();
+                const otherUser = isUser1 ? convo.user2 : convo.user1;
                 
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-label-lg font-bold text-on-surface truncate group-hover:text-primary transition-colors flex items-center gap-2">
-                      {otherUser.display_name}
-                      {unreadCounts[otherUser.wallet_address] > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-error inline-block shrink-0"></span>
+                return (
+                  <Link 
+                    key={convo.id}
+                    href={`/messages/${convo.id}`}
+                    className="w-full flex items-center gap-4 p-4 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/50 rounded-2xl transition-all group"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-surface-container-highest overflow-hidden shrink-0 border border-outline-variant">
+                      {otherUser.avatar_url ? (
+                        <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-bold text-lg bg-primary/20 text-primary">
+                          {otherUser.display_name?.slice(0, 2).toUpperCase() || "U"}
+                        </div>
                       )}
-                    </span>
-                    <span className="font-body-sm text-on-surface-variant shrink-0 ml-2">
-                      {new Date(convo.last_message_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center w-full">
-                    <span className={`font-body-md truncate ${unreadCounts[otherUser.wallet_address] > 0 ? "text-on-surface font-bold" : "text-on-surface-variant"}`}>
-                      @{otherUser.username}
-                    </span>
-                    {unreadCounts[otherUser.wallet_address] > 0 && (
-                      <div className="bg-error text-on-error text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
-                        {unreadCounts[otherUser.wallet_address]}
+                    </div>
+                    
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-label-lg font-bold text-on-surface truncate group-hover:text-primary transition-colors flex items-center gap-2">
+                          {otherUser.display_name}
+                          {unreadCounts[otherUser.wallet_address] > 0 && (
+                            <span className="w-2 h-2 rounded-full bg-error inline-block shrink-0"></span>
+                          )}
+                        </span>
+                        <span className="font-body-sm text-on-surface-variant shrink-0 ml-2">
+                          {new Date(convo.last_message_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                      <div className="flex justify-between items-center w-full">
+                        <span className={`font-body-md truncate ${unreadCounts[otherUser.wallet_address] > 0 ? "text-on-surface font-bold" : "text-on-surface-variant"}`}>
+                          @{otherUser.username}
+                        </span>
+                        {unreadCounts[otherUser.wallet_address] > 0 && (
+                          <div className="bg-error text-on-error text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+                            {unreadCounts[otherUser.wallet_address]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 mb-4 bg-surface-container border border-outline-variant/50 rounded-xl px-4 py-3">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page === 1}
+                className="flex items-center gap-1 font-label-md text-on-surface-variant disabled:opacity-30 hover:text-primary disabled:hover:text-on-surface-variant transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">arrow_back_ios</span>
+                Previous
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`w-8 h-8 rounded-full text-sm font-bold transition-all ${
+                      p === page
+                        ? "bg-primary text-on-primary scale-110"
+                        : "text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page === totalPages}
+                className="flex items-center gap-1 font-label-md text-on-surface-variant disabled:opacity-30 hover:text-primary disabled:hover:text-on-surface-variant transition-colors"
+              >
+                Next
+                <span className="material-symbols-outlined text-[18px]">arrow_forward_ios</span>
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

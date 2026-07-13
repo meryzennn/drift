@@ -1,6 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import PostCard from "@/components/PostCard";
-import CreateComment from "@/components/CreateComment";
+import ClientReplies from "@/components/ClientReplies";
 import BackButton from "@/components/BackButton";
 import { notFound } from "next/navigation";
 import { Post } from "@/types";
@@ -54,31 +54,12 @@ export default async function PostDetailPage({ params, searchParams }: { params:
         <h1 className="font-headline-sm font-bold text-on-surface">Post</h1>
       </div>
 
-      {/* Main Post */}
-      <div className="pt-md pb-xs">
-        <PostCard post={post} isDetail={true} />
-      </div>
-
-      {/* Create Comment Form */}
-      <CreateComment postId={post.id} postAuthor={post.authorPublicKey} />
-
-      {/* Replies List */}
-      <div className="flex flex-col gap-md pb-md">
-        {replies.length === 0 ? (
-          <div className="p-xl text-center text-on-surface-variant font-body-md">
-            No replies yet. Be the first to reply!
-          </div>
-        ) : (
-          replies.map(reply => (
-            <PostCard 
-              key={reply.id} 
-              post={reply} 
-              hideReplyIndicator={true} 
-              isHighlighted={reply.id === highlightId} 
-            />
-          ))
-        )}
-      </div>
+      {/* Main Post and Replies — managed client-side via realtime, no router.refresh() */}
+      <ClientReplies
+        mainPost={post}
+        initialReplies={replies}
+        highlightId={highlightId}
+      />
     </div>
   );
 }

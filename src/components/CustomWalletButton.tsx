@@ -7,6 +7,13 @@ import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 import WalletModal from "./WalletModal";
 
+// Extend Window to include the PWA install prompt event
+declare global {
+  interface Window {
+    _pwaInstallPrompt?: any;
+  }
+}
+
 export default function CustomWalletButton() {
   const { connected, publicKey, disconnect } = useWallet();
   const { connection } = useConnection();
@@ -14,7 +21,22 @@ export default function CustomWalletButton() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Capture PWA install prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      // Also cache it globally so other components can use it
+      window._pwaInstallPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    // If already cached from a prior page load
+    if (window._pwaInstallPrompt) setInstallPrompt(window._pwaInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   // Fetch avatar
   useEffect(() => {
@@ -160,6 +182,25 @@ export default function CustomWalletButton() {
               <span className="material-symbols-outlined text-[18px]">settings</span>
               Settings
             </Link>
+            {/* PWA Install — only shown on mobile when install is available */}
+            {installPrompt && (
+              <button
+                onClick={async () => {
+                  if (!installPrompt) return;
+                  installPrompt.prompt();
+                  const { outcome } = await installPrompt.userChoice;
+                  if (outcome === 'accepted') {
+                    setInstallPrompt(null);
+                    window._pwaInstallPrompt = null;
+                  }
+                  setIsDropdownOpen(false);
+                }}
+                className="lg:hidden flex items-center gap-sm p-sm rounded-md hover:bg-primary/10 text-primary transition-colors font-label-md w-full text-left cursor-pointer border-none bg-transparent"
+              >
+                <span className="material-symbols-outlined text-[18px]">install_mobile</span>
+                Install App
+              </button>
+            )}
           </div>
           <div className="p-xs border-t border-[#27272a]">
             <button 

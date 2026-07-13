@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
+import { getCachedFbEmbed, resolveFbEmbed } from "@/lib/fbEmbedResolver";
 
 interface SocialEmbedProps {
   embed: {
@@ -11,156 +12,187 @@ interface SocialEmbedProps {
   };
 }
 
-declare global {
-  interface Window {
-    FB: any;
-  }
+function buildFbIframeSrc(resolvedUrl: string, aspect: string, autoplay: boolean) {
+  const [w, h] = aspect.split('/').map(Number);
+  const vertical = h > w;
+  const width = vertical ? 320 : 560;
+  const height = Math.round(width * (h / w));
+  // Always start muted (browser requirement for autoplay) but keep native
+  // controls visible so the user can unmute with a real, reliable in-iframe click.
+  return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&width=${width}&height=${height}&autoplay=${autoplay ? 1 : 0}&mute=1`;
 }
 
-export default function SocialEmbed({ embed }: SocialEmbedProps) {
+function SocialEmbed({ embed }: SocialEmbedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const fbContainerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [shouldRender, setShouldRender] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [resolvedFbUrl, setResolvedFbUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (embed.type === 'facebook' && (embed.originalUrl.includes('/share/r/') || embed.originalUrl.includes('/share/v/'))) {
-      setIsLoading(true);
-      fetch(`/api/resolve-fb?url=${encodeURIComponent(embed.originalUrl)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.resolvedUrl) {
-            setResolvedFbUrl(data.resolvedUrl);
-          } else {
-            setResolvedFbUrl(embed.originalUrl);
-          }
-        })
-        .catch(() => setResolvedFbUrl(embed.originalUrl));
-    } else if (embed.type === 'facebook') {
-      setResolvedFbUrl(embed.originalUrl);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // used for YouTube only
+  const [ytShouldRender, setYtShouldRender] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const cachedInit = embed.type === 'facebook' ? getCachedFbEmbed(embed.originalUrl) : undefined;
+
+  let initialIsVertical = false;
+  if (embed.type === 'facebook') {
+    if (cachedInit) {
+      const [w, h] = cachedInit.aspectRatio.split('/').map(Number);
+      initialIsVertical = h > w;
+    } else {
+      initialIsVertical =
+        embed.isVertical === true ||
+        embed.originalUrl.includes('/reel/') ||
+        embed.originalUrl.includes('/share/r/');
     }
+  }
+
+  const [fbResolved, setFbResolved] = useState<{ resolvedUrl: string; aspectRatio: string } | null>(cachedInit ?? null);
+  const [fbAspect, setFbAspect] = useState<string>(cachedInit?.aspectRatio ?? (initialIsVertical ? '9/16' : '16/9'));
+  const [isFbVertical, setIsFbVertical] = useState(initialIsVertical);
+
+  // Resolve Facebook URL → canonical URL + real aspect ratio (cached, once)
+  useEffect(() => {
+    if (embed.type !== 'facebook') return;
+    resolveFbEmbed(embed.originalUrl).then(({ resolvedUrl, aspectRatio }) => {
+      const [w, h] = aspectRatio.split('/').map(Number);
+      setFbAspect(aspectRatio);
+      setIsFbVertical(h > w);
+      setFbResolved({ resolvedUrl, aspectRatio });
+    });
   }, [embed.type, embed.originalUrl]);
 
-  // Load FB SDK and parse
+  // Shared visibility observer for BOTH YouTube and Facebook.
   useEffect(() => {
-    if (embed.type === 'facebook' && resolvedFbUrl && shouldRender && fbContainerRef.current) {
-      const parseFB = () => {
-        if (window.FB && fbContainerRef.current) {
-          window.FB.XFBML.parse(fbContainerRef.current, () => {
-            setIsLoading(false);
-          });
-        }
-      };
+    const el = containerRef.current;
+    if (!el) return;
 
-      if (window.FB) {
-        // Need a slight delay to ensure React has painted the fb-video div
-        setTimeout(parseFB, 100);
-      } else {
-        const scriptId = 'facebook-jssdk';
-        let script = document.getElementById(scriptId) as HTMLScriptElement;
-        if (!script) {
-          script = document.createElement('script');
-          script.id = scriptId;
-          script.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0";
-          script.async = true;
-          script.defer = true;
-          script.crossOrigin = "anonymous";
-          document.body.appendChild(script);
-        }
-        
-        script.addEventListener('load', parseFB);
-        return () => script.removeEventListener('load', parseFB);
-      }
-    }
-  }, [embed.type, resolvedFbUrl, shouldRender]);
-
-  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setShouldRender(true);
-            // If YouTube, send play command
-            if (embed.type === "youtube" && iframeRef.current?.contentWindow) {
-              iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-            }
-          } else {
-            // If YouTube, send pause command
-            if (embed.type === "youtube" && iframeRef.current?.contentWindow) {
-              iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-            }
-          }
-        });
+        entries.forEach((entry) => setIsVisible(entry.isIntersecting));
       },
-      { threshold: 0.2, rootMargin: '200px' }
+      { threshold: 0.6, rootMargin: '0px' }
     );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, []);
 
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
-    };
-  }, [embed.type]);
+  // YouTube: drive play/pause + mute via postMessage based on visibility
+  useEffect(() => {
+    if (embed.type !== 'youtube') return;
+    if (isVisible) setYtShouldRender(true);
 
-  // Append enablejsapi=1 for YouTube to allow postMessage controls
-  const url = embed.type === "youtube" && !embed.url.includes("enablejsapi=1")
-    ? `${embed.url}&enablejsapi=1`
-    : embed.url;
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
 
-  const containerClasses = [
-    'relative rounded-xl overflow-hidden mt-1',
-    embed.isVertical ? 'w-full max-w-[280px] sm:max-w-[300px] mx-auto' : 'w-full',
-    embed.type === 'facebook' ? 'flex justify-center bg-surface-container-low' : 'border border-outline-variant'
-  ].join(' ');
+    win.postMessage(
+      JSON.stringify({ event: 'command', func: isVisible ? 'playVideo' : 'pauseVideo', args: '' }),
+      '*'
+    );
+    win.postMessage(
+      JSON.stringify({ event: 'command', func: !isVisible || isMuted ? 'mute' : 'unMute', args: '' }),
+      '*'
+    );
+  }, [isVisible, embed.type, isMuted]);
 
-  return (
-    <div 
-      ref={containerRef}
-      className={containerClasses}
-    >
-      {shouldRender ? (
-        <>
-          {isLoading && (
-            <div className={`absolute inset-0 bg-surface-container-low flex flex-col items-center justify-center gap-sm z-10`}>
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span className="font-label-sm text-outline">Loading video...</span>
-            </div>
-          )}
-          
-          {embed.type === 'facebook' ? (
-            <div ref={fbContainerRef} className="w-full flex justify-center min-h-[200px]">
-              {resolvedFbUrl && (
-                <div 
-                  className="fb-video" 
-                  data-href={resolvedFbUrl} 
-                  data-show-text="false"
-                  data-lazy="true"
-                  data-autoplay="true"
-                />
-              )}
-            </div>
-          ) : (
-            <iframe 
-              ref={iframeRef}
-              src={url} 
-              className={`w-full ${embed.isVertical ? 'aspect-[9/16]' : 'aspect-video'} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
-              frameBorder="0" 
-              allowFullScreen 
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+  const handleToggleYtMute = useCallback(() => {
+    setIsMuted((m) => !m);
+  }, []);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const youtubeUrl = (() => {
+    if (embed.type !== 'youtube') return embed.url;
+    let url = embed.url;
+    if (!url.includes('enablejsapi=1')) url += `${url.includes('?') ? '&' : '?'}enablejsapi=1`;
+    if (origin && !url.includes('origin=')) url += `&origin=${encodeURIComponent(origin)}`;
+    if (!url.includes('mute=')) url += `&mute=1`;
+    if (!url.includes('controls=')) url += `&controls=0`; // custom button replaces native controls reliably
+    return url;
+  })();
+
+  const isYoutubeVertical = embed.type === 'youtube' && embed.isVertical;
+
+  // FB iframe only rebuilds on visibility (mount/unmount), never on mute —
+  // mute is handled entirely by FB's own native control now.
+  const fbIframeSrc = useMemo(() => {
+    if (!fbResolved) return null;
+    return buildFbIframeSrc(fbResolved.resolvedUrl, fbResolved.aspectRatio, isVisible);
+  }, [fbResolved, isVisible]);
+
+  useEffect(() => {
+    if (fbIframeSrc) setIsLoading(true);
+  }, [fbIframeSrc]);
+
+  // ── Facebook ──────────────────────────────────────────────────────────────
+  if (embed.type === 'facebook') {
+    return (
+      <div
+        ref={containerRef}
+        className={`relative rounded-xl overflow-hidden mt-1 bg-black ${isFbVertical ? 'w-full max-w-[320px] mx-auto' : 'w-full'}`}
+      >
+        <div style={{ aspectRatio: fbAspect, width: '100%', background: '#000' }}>
+          {/* Only mounted while actually visible — kills sound instantly on scroll-away */}
+          {isVisible && fbIframeSrc && (
+            <iframe
+              key={fbIframeSrc}
+              src={fbIframeSrc}
+              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+              scrolling="no"
+              allowFullScreen
+              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              className={`${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-500`}
               onLoad={() => setIsLoading(false)}
             />
           )}
-        </>
+          {isVisible && isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center gap-2 pointer-events-none">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-outline">Loading...</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── YouTube ───────────────────────────────────────────────────────────────
+  return (
+    <div
+      ref={containerRef}
+      onClick={handleToggleYtMute}
+      className={`relative rounded-xl overflow-hidden mt-1 border border-outline-variant cursor-pointer ${isYoutubeVertical ? 'w-full max-w-[280px] sm:max-w-[300px] mx-auto' : 'w-full'}`}
+    >
+      {ytShouldRender ? (
+        <iframe
+          ref={iframeRef}
+          src={youtubeUrl}
+          className={`w-full ${isYoutubeVertical ? 'aspect-[9/16]' : 'aspect-video'} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+          frameBorder="0"
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          onLoad={() => setIsLoading(false)}
+        />
       ) : (
-        // Placeholder while out of view
-        <div className={`w-full bg-surface-container-low ${embed.type === 'facebook' ? 'min-h-[200px]' : (embed.isVertical ? 'aspect-[9/16]' : 'aspect-video')}`} />
+        <div className={`w-full bg-surface-container-low ${isYoutubeVertical ? 'aspect-[9/16]' : 'aspect-video'}`} />
+      )}
+      {ytShouldRender && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleYtMute(); }}
+          className="absolute bottom-2 right-2 z-10 bg-black/60 rounded-full p-2 text-white"
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {isMuted ? 'volume_off' : 'volume_up'}
+          </span>
+        </button>
       )}
     </div>
   );
 }
+
+export default memo(SocialEmbed, (prev, next) =>
+  prev.embed.originalUrl === next.embed.originalUrl &&
+  prev.embed.type === next.embed.type &&
+  prev.embed.isVertical === next.embed.isVertical
+);
