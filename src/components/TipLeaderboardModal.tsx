@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Tipper {
   actor_wallet: string;
@@ -24,6 +25,7 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
   const [tippers, setTippers] = useState<Tipper[]>([]);
   const [totalSol, setTotalSol] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [fallbackSolPrice, setFallbackSolPrice] = useState<number>(145);
   const router = useRouter();
 
@@ -109,7 +111,7 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
             <h2 className="font-headline-sm font-bold text-on-surface">Tip Leaderboard</h2>
             {!loading && (
               <p className="font-body-sm text-on-surface-variant">
-                <span className="text-primary font-bold">{totalSol.toFixed(4)} SOL</span> total received
+                <span className="text-primary font-bold">{totalSol.toFixed(2)} SOL</span> total received
               </p>
             )}
           </div>
@@ -134,55 +136,88 @@ export default function TipLeaderboardModal({ isOpen, onClose, postId, postAutho
               <p className="font-body-sm text-outline mt-xs">Be the first to tip this post!</p>
             </div>
           ) : (
-            <div className="flex flex-col">
-              {tippers.map((t, i) => (
-                <div
-                  key={`${t.actor_wallet}-${i}`}
-                  className="flex items-center gap-md px-lg py-md hover:bg-surface-container-highest transition-colors cursor-pointer border-b border-outline-variant/30 last:border-0 group"
-                  onClick={() => { router.push(`/profile/${t.username || t.actor_wallet}`); onClose(); }}
+            <div className="flex flex-col flex-1 relative">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={page}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="flex flex-col min-h-[350px]"
                 >
-                  {/* Rank */}
-                  <span className={`font-bold text-sm w-5 text-center shrink-0 ${
-                    i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-outline"
-                  }`}>
-                    #{i + 1}
-                  </span>
+                  {tippers.slice((page - 1) * 5, page * 5).map((t, i) => {
+                    const globalIndex = (page - 1) * 5 + i;
+                    return (
+                    <div
+                      key={`${t.actor_wallet}-${globalIndex}`}
+                      className="flex items-center gap-md px-lg py-md hover:bg-surface-container-highest transition-colors cursor-pointer border-b border-outline-variant/30 last:border-0 group"
+                      onClick={() => { router.push(`/profile/${t.username || t.actor_wallet}`); onClose(); }}
+                    >
+                      {/* Rank */}
+                      <span className={`font-bold text-sm w-5 text-center shrink-0 ${
+                        globalIndex === 0 ? "text-yellow-400" : globalIndex === 1 ? "text-gray-300" : globalIndex === 2 ? "text-amber-600" : "text-outline"
+                      }`}>
+                        #{globalIndex + 1}
+                      </span>
 
-                  {/* Avatar */}
-                  <div className="w-9 h-9 rounded-full bg-primary/20 overflow-hidden shrink-0 border border-outline-variant group-hover:border-primary/50 transition-colors">
-                    {t.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="material-symbols-outlined text-[18px] text-primary flex items-center justify-center h-full">person</span>
-                    )}
-                  </div>
+                      {/* Avatar */}
+                      <div className="w-9 h-9 rounded-full bg-primary/20 overflow-hidden shrink-0 border border-outline-variant group-hover:border-primary/50 transition-colors">
+                        {t.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[18px] text-primary flex items-center justify-center h-full">person</span>
+                        )}
+                      </div>
 
-                  {/* Name */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-label-md text-on-surface truncate group-hover:text-primary transition-colors">
-                      @{t.username || `${t.actor_wallet.slice(0, 6)}...`}
-                    </p>
-                  </div>
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-label-md text-on-surface truncate group-hover:text-primary transition-colors">
+                          @{t.username || `${t.actor_wallet.slice(0, 6)}...`}
+                        </p>
+                      </div>
 
-                  {/* Amount */}
-                  <div className="flex flex-col items-end gap-0.5 shrink-0">
-                    <div className="flex items-center gap-xs text-primary">
-                      <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
-                      <span className="font-bold font-label-md">{t.amount} SOL</span>
+                      {/* Amount */}
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <div className="flex items-center gap-xs text-primary">
+                          <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>toll</span>
+                          <span className="font-bold font-label-md">{Number(t.amount).toFixed(2)} SOL</span>
+                        </div>
+                        {t.amount_usd && t.amount_usd > 0 ? (
+                          <span className="text-on-surface-variant text-[11px] font-mono">
+                            ${Number(t.amount_usd).toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-on-surface-variant text-[11px] font-mono">
+                            ${Number(t.amount * fallbackSolPrice).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {t.amount_usd && t.amount_usd > 0 ? (
-                      <span className="text-on-surface-variant text-[11px] font-mono">
-                        ${Number(t.amount_usd).toFixed(2)}
-                      </span>
-                    ) : (
-                      <span className="text-on-surface-variant text-[11px] font-mono">
-                        ${Number(t.amount * fallbackSolPrice).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
+                  )})}
+                </motion.div>
+              </AnimatePresence>
+              
+              {tippers.length > 5 && (
+                <div className="flex items-center justify-between px-lg py-md border-t border-outline-variant/50 bg-surface-container-lowest mt-1">
+                  <button 
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-1 rounded-full hover:bg-surface-container flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-outline-variant/50"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                  </button>
+                  <span className="font-label-sm font-bold text-on-surface">Page {page} of {Math.ceil(tippers.length / 5)}</span>
+                  <button 
+                    onClick={() => setPage(p => Math.min(Math.ceil(tippers.length / 5), p + 1))}
+                    disabled={page >= Math.ceil(tippers.length / 5)}
+                    className="p-1 rounded-full hover:bg-surface-container flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed border border-outline-variant/50"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

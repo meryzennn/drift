@@ -268,6 +268,9 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      if (typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        return; // Allow default new line on mobile/touch devices
+      }
       e.preventDefault();
       if ((content.trim() || files.length > 0 || gifUrl) && !loading && content.length <= 255) {
         handleSubmit(e as unknown as React.FormEvent);

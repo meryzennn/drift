@@ -1,10 +1,21 @@
 import { supabase } from "@/utils/supabase";
 import Link from "next/link";
 import BackButton from "@/components/BackButton";
+import AnimatedList from "@/components/AnimatedList";
 
 export const revalidate = 0;
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const pageStr = (params?.page as string) || "1";
+  const page = parseInt(pageStr, 10) || 1;
+  const limit = 5;
+  const offset = (page - 1) * limit;
+
   const { data: topTippers } = await supabase
     .from("top_tippers")
     .select(`
@@ -17,7 +28,7 @@ export default async function LeaderboardPage() {
         avatar_url
       )
     `)
-    .limit(50);
+    .range(offset, offset + limit - 1);
 
   let fallbackSolPrice = 145; // Default fallback
   try {
@@ -68,73 +79,112 @@ export default async function LeaderboardPage() {
           </div>
         ) : (
           <div className="flex flex-col">
-            {topTippers.map((tipper: any, index: number) => (
-              <Link 
-                key={tipper.from_wallet} 
-                href={`/profile/${tipper.users?.username || tipper.from_wallet}`}
-                className={`flex items-center justify-between p-md hover:bg-surface-container-high transition-colors group cursor-pointer ${
-                  index !== topTippers.length - 1 ? "border-b border-outline-variant/50" : ""
-                }`}
-              >
-                <div className="flex items-center gap-md">
-                  <div className="w-8 font-headline-md text-on-surface-variant text-center">
-                    {index + 1}
+            <AnimatedList animationKey={page}>
+              {topTippers.map((tipper: any, index: number) => (
+                <Link 
+                  key={tipper.from_wallet} 
+                  href={`/profile/${tipper.users?.username || tipper.from_wallet}`}
+                  className={`flex items-center justify-between p-md hover:bg-surface-container-high transition-colors group cursor-pointer ${
+                    index !== topTippers.length - 1 ? "border-b border-outline-variant/50" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-md">
+                    <div className="w-8 font-headline-md text-on-surface-variant text-center">
+                      {offset + index + 1}
+                    </div>
+                    
+                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-surface-container-highest flex items-center justify-center font-bold text-on-surface relative text-xl group-hover:border-primary/50 transition-colors">
+                      {tipper.users?.avatar_url ? (
+                        <img src={tipper.users.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[24px] text-primary">person</span>
+                      )}
+                      {offset + index === 0 && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
+                          <span className="material-symbols-outlined text-[12px] text-yellow-900" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        </div>
+                      )}
+                      {offset + index === 1 && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
+                          <span className="material-symbols-outlined text-[12px] text-gray-800" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        </div>
+                      )}
+                      {offset + index === 2 && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-600 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
+                          <span className="material-symbols-outlined text-[12px] text-amber-950" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col min-w-0">
+                      <div className="font-headline-sm font-bold text-on-surface truncate group-hover:text-primary transition-colors">
+                        {tipper.users?.display_name || "Anonymous"}
+                      </div>
+                      <div className="font-mono text-[14px] text-on-surface-variant">
+                        @{tipper.users?.username || formatAddress(tipper.from_wallet)}
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-outline-variant bg-surface-container-highest flex items-center justify-center font-bold text-on-surface relative text-xl group-hover:border-primary/50 transition-colors">
-                    {tipper.users?.avatar_url ? (
-                      <img src={tipper.users.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="text-primary font-label-lg sm:font-headline-md bg-primary/10 px-sm py-1 sm:px-md sm:py-sm rounded-lg flex items-center gap-xs">
+                      <svg className="w-[14px] h-[10px] sm:w-[18px] sm:h-[14px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
+                        <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
+                        <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6 11.1l-62.7-62.7z" />
+                      </svg>
+                      {Number(tipper.total_tipped).toFixed(2)} SOL
+                    </div>
+                    {tipper.total_tipped_usd > 0 ? (
+                      <span className="text-on-surface-variant text-xs pr-1 font-mono">
+                        ${Number(tipper.total_tipped_usd).toFixed(2)}
+                      </span>
                     ) : (
-                      <span className="material-symbols-outlined text-[24px] text-primary">person</span>
-                    )}
-                    {index === 0 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
-                        <span className="material-symbols-outlined text-[12px] text-yellow-900" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      </div>
-                    )}
-                    {index === 1 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
-                        <span className="material-symbols-outlined text-[12px] text-gray-800" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      </div>
-                    )}
-                    {index === 2 && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-600 rounded-full flex items-center justify-center border-2 border-surface-container-highest shadow-sm">
-                        <span className="material-symbols-outlined text-[12px] text-amber-950" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      </div>
+                      <span className="text-on-surface-variant text-xs pr-1 font-mono">
+                        ${Number(tipper.total_tipped * fallbackSolPrice).toFixed(2)}
+                      </span>
                     )}
                   </div>
-                  
-                  <div className="flex flex-col min-w-0">
-                    <div className="font-headline-sm font-bold text-on-surface truncate group-hover:text-primary transition-colors">
-                      {tipper.users?.display_name || "Anonymous"}
-                    </div>
-                    <div className="font-mono text-[14px] text-on-surface-variant">
-                      @{tipper.users?.username || formatAddress(tipper.from_wallet)}
-                    </div>
-                  </div>
+                </Link>
+              ))}
+            </AnimatedList>
+            
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between p-md bg-surface-container border-t border-outline-variant/50 mt-4 mx-4 rounded-xl mb-4 shadow-sm">
+              {page > 1 ? (
+                <Link 
+                  href={`/leaderboard?page=${page - 1}`}
+                  className="px-5 py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                  Previous
+                </Link>
+              ) : (
+                <div className="px-5 py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-2 cursor-not-allowed">
+                  <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                  Previous
                 </div>
-                
-                <div className="flex flex-col items-end gap-1">
-                  <div className="text-primary font-label-lg sm:font-headline-md bg-primary/10 px-sm py-1 sm:px-md sm:py-sm rounded-lg flex items-center gap-xs">
-                    <svg className="w-[14px] h-[10px] sm:w-[18px] sm:h-[14px] fill-current shrink-0" viewBox="0 0 397 311" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
-                      <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
-                      <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6 11.1l-62.7-62.7z" />
-                    </svg>
-                    {tipper.total_tipped} SOL
-                  </div>
-                  {tipper.total_tipped_usd > 0 ? (
-                    <span className="text-on-surface-variant text-xs pr-1 font-mono">
-                      ${Number(tipper.total_tipped_usd).toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="text-on-surface-variant text-xs pr-1 font-mono">
-                      ${Number(tipper.total_tipped * fallbackSolPrice).toFixed(2)}
-                    </span>
-                  )}
+              )}
+              
+              <div className="font-label-lg font-bold bg-surface-container-highest px-4 py-2 rounded-full text-on-surface shadow-inner">
+                Page {page}
+              </div>
+              
+              {topTippers.length === limit ? (
+                <Link 
+                  href={`/leaderboard?page=${page + 1}`}
+                  className="px-5 py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-2"
+                >
+                  Next
+                  <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                </Link>
+              ) : (
+                <div className="px-5 py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-2 cursor-not-allowed">
+                  Next
+                  <span className="material-symbols-outlined text-[20px]">chevron_right</span>
                 </div>
-              </Link>
-            ))}
+              )}
+            </div>
           </div>
         )}
       </div>

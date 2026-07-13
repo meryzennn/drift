@@ -157,9 +157,9 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
       toast.success("Post created successfully!");
       router.refresh(); // Reload server components (Feed)
       if (onSuccess) onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating post:", error);
-      toast.error("Failed to create post. See console.");
+      toast.error(error?.message || "Failed to create post.");
     } finally {
       setLoading(false);
     }
@@ -287,6 +287,9 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      if (typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        return; // Allow default new line on mobile/touch devices
+      }
       e.preventDefault();
       if ((content.trim() || files.length > 0 || gifUrl) && !loading && content.length <= 255) {
         handleSubmit(e as unknown as React.FormEvent);

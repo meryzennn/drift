@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import bs58 from "bs58";
 import { deriveChatKeypair } from "@/utils/encryption";
 import toast from "react-hot-toast";
+import MessagesSkeleton from "@/components/skeletons/MessagesSkeleton";
 
 export default function MessagesHub() {
   const { publicKey, signMessage } = useWallet();
@@ -178,9 +179,9 @@ export default function MessagesHub() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-4 w-full">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-20 w-full bg-surface-container-high rounded-xl animate-pulse"></div>
+        <div className="flex flex-col gap-3 w-full min-w-full">
+          {[1, 2, 3, 4, 5].map(i => (
+            <MessagesSkeleton key={i} />
           ))}
         </div>
       ) : conversations.length === 0 ? (
