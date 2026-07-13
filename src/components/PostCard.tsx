@@ -100,6 +100,13 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
     }
   };
 
+  const [localCommentsCount, setLocalCommentsCount] = useState(post.commentsCount || 0);
+
+  // Sync with prop changes (e.g. when ClientReplies updates commentsCount locally)
+  useEffect(() => {
+    setLocalCommentsCount(post.commentsCount || 0);
+  }, [post.commentsCount]);
+
   useEffect(() => {
     // We check if it's liked/reposted by me, AND we fetch fresh counts 
     // to ensure they don't revert to stale values when using the browser back button
@@ -108,7 +115,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
         const [{ data: likeData }, { data: repostData }, { data: statsData }] = await Promise.all([
           supabase.from("post_likes").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
           supabase.from("reposts").select("created_at").eq("post_id", post.id).eq("user_wallet", publicKey.toString()).maybeSingle(),
-          supabase.from("posts").select("likes, reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single(),
+          supabase.from("posts").select("likes, replies:posts!reply_to_post_id(count), reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single(),
         ]);
         
         setIsLikedByMe(!!likeData);
@@ -116,6 +123,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
 
         if (statsData) {
           setLocalLikesCount(statsData.likes || 0);
+          setLocalCommentsCount(statsData.replies?.[0]?.count ?? 0);
           const freshReposts = (statsData.reposts?.[0]?.count ?? 0) + (statsData.quotes?.[0]?.count ?? 0);
           setLocalRepostsCount(freshReposts);
         }
@@ -127,9 +135,10 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
       
       // Still fetch fresh stats even if not logged in
       const fetchStats = async () => {
-        const { data: statsData } = await supabase.from("posts").select("likes, reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single();
+        const { data: statsData } = await supabase.from("posts").select("likes, replies:posts!reply_to_post_id(count), reposts(count), quotes:posts!quote_post_id(count)").eq("id", post.id).single();
         if (statsData) {
           setLocalLikesCount(statsData.likes || 0);
+          setLocalCommentsCount(statsData.replies?.[0]?.count ?? 0);
           const freshReposts = (statsData.reposts?.[0]?.count ?? 0) + (statsData.quotes?.[0]?.count ?? 0);
           setLocalRepostsCount(freshReposts);
         }
@@ -414,7 +423,7 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
           className={`flex items-center gap-xs transition-colors group shrink-0 ${isViewer ? 'hover:text-white' : 'hover:text-primary'}`}
         >
           <span className={`material-symbols-outlined text-[18px] rounded-full p-xs ${isViewer ? 'group-hover:bg-white/10' : 'group-hover:bg-primary/10'}`}>chat_bubble</span>
-          <span className="font-body-sm text-[12px]">{formatCount(post.commentsCount || 0)}</span>
+          <span className="font-body-sm text-[12px]">{formatCount(localCommentsCount)}</span>
         </button>
         
         {/* Reposts */}

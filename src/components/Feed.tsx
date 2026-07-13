@@ -11,6 +11,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Virtuoso } from "react-virtuoso";
 import { useRef } from "react";
 import { resolveFbEmbed } from "@/lib/fbEmbedResolver";
+import { parseEmbeds } from "@/utils/embedParser";
 
 interface FeedItem {
   type: "post" | "activity";
@@ -26,19 +27,20 @@ interface FeedProps {
 }
 
 const getCache = () => {
-  if (typeof window === 'undefined') return { index: {} as Record<string, number> };
+  if (typeof window === 'undefined') return { index: {} as Record<string, number>, virtuosoState: {} as Record<string, any> };
   if (!(window as any)._feedCache) {
-    (window as any)._feedCache = { index: {} };
+    (window as any)._feedCache = { index: {}, virtuosoState: {} };
   }
   return (window as any)._feedCache;
 };
 
-// NOTE: adjust this if your Post type stores the Facebook embed URL under a
-// different field name (or you parse it out of post.content instead).
-function extractFbUrl(post: Post): string | null {
-  const url = (post as any).embedUrl as string | undefined;
-  if (url && url.includes('facebook.com')) return url;
-  return null;
+// Extract Facebook URL from post content using the parser
+function extractFbUrls(post: Post): string[] {
+  if (!post.content) return [];
+  const parsed = parseEmbeds(post.content);
+  return parsed.embeds
+    .filter(e => e.type === 'facebook')
+    .map(e => e.originalUrl);
 }
 
 export default function Feed({ posts }: FeedProps) {
@@ -79,9 +81,7 @@ export default function Feed({ posts }: FeedProps) {
   // land, so by the time Virtuoso mounts+measures the item, the real height
   // is already known — avoids the scrollHeight jump mid-scroll.
   useEffect(() => {
-    const fbUrls = internalPosts
-      .map(extractFbUrl)
-      .filter((url): url is string => !!url);
+    const fbUrls = internalPosts.flatMap(extractFbUrls);
 
     fbUrls.forEach(url => {
       resolveFbEmbed(url); // fire-and-forget, just warms the cache
