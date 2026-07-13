@@ -46,8 +46,18 @@ export async function GET(request: Request) {
     const videoHeightMatch = html.match(/property="og:video:height"\s+content="(\d+)"/i) ||
                              html.match(/content="(\d+)"\s+property="og:video:height"/i);
 
-    const videoWidth = videoWidthMatch ? parseInt(videoWidthMatch[1]) : null;
-    const videoHeight = videoHeightMatch ? parseInt(videoHeightMatch[1]) : null;
+    let videoWidth = videoWidthMatch ? parseInt(videoWidthMatch[1]) : null;
+    let videoHeight = videoHeightMatch ? parseInt(videoHeightMatch[1]) : null;
+
+    if (!videoWidth || !videoHeight) {
+      const imageWidthMatch = html.match(/property="og:image:width"\s+content="(\d+)"/i) ||
+                              html.match(/content="(\d+)"\s+property="og:image:width"/i);
+      const imageHeightMatch = html.match(/property="og:image:height"\s+content="(\d+)"/i) ||
+                               html.match(/content="(\d+)"\s+property="og:image:height"/i);
+      
+      videoWidth = imageWidthMatch ? parseInt(imageWidthMatch[1]) : null;
+      videoHeight = imageHeightMatch ? parseInt(imageHeightMatch[1]) : null;
+    }
 
     // Determine aspect ratio: vertical = 9:16 (portrait), horizontal = 16:9
     let aspectRatio: string | null = null;

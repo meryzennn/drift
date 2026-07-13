@@ -189,9 +189,10 @@ const VideoPlayer = ({ url }: VideoPlayerProps) => {
           e.stopPropagation();
           e.preventDefault();
         }}
-        autoPlay
         muted={isMuted}
         loop
+        playsInline
+        preload="metadata"
       />
 
       {/* Loading Spinner */}

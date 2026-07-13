@@ -16,10 +16,11 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ytShouldRender, setYtShouldRender] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  // For FB: resolved canonical URL and actual video aspect ratio from server
+  // Initialize with the parser's best guess to prevent layout shift while fetching metadata
+  const initialIsVertical = embed.type === 'facebook' && (embed.isVertical === true || embed.originalUrl.includes('/reel/') || embed.originalUrl.includes('/share/r/'));
   const [fbIframeSrc, setFbIframeSrc] = useState<string | null>(null);
-  const [fbAspect, setFbAspect] = useState<string>('16/9');
-  const [isFbVertical, setIsFbVertical] = useState(false);
+  const [fbAspect, setFbAspect] = useState<string>(initialIsVertical ? '9/16' : '16/9');
+  const [isFbVertical, setIsFbVertical] = useState(initialIsVertical);
 
   // Resolve Facebook URL → get canonical URL + real video aspect ratio
   useEffect(() => {
