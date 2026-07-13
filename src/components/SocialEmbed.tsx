@@ -30,9 +30,15 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
     const needsResolve =
       originalUrl.includes('/share/r/') || originalUrl.includes('/share/v/');
 
-    const buildIframeSrc = (resolvedUrl: string, vertical: boolean) => {
+    // Builds the plugin URL with an explicit height derived from the real
+    // aspect ratio, so Facebook doesn't fall back to its own default ratio
+    // and leave blank space in the container.
+    const buildIframeSrc = (resolvedUrl: string, aspect: string) => {
+      const [w, h] = aspect.split('/').map(Number);
+      const vertical = h > w;
       const width = vertical ? 320 : 560;
-      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&width=${width}&autoplay=0&mute=1`;
+      const height = Math.round(width * (h / w));
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(resolvedUrl)}&show_text=false&width=${width}&height=${height}&autoplay=0&mute=1`;
     };
 
     if (needsResolve) {
@@ -45,22 +51,24 @@ function SocialEmbed({ embed }: SocialEmbedProps) {
           const vertical = h > w;
           setFbAspect(aspect);
           setIsFbVertical(vertical);
-          setFbIframeSrc(buildIframeSrc(resolvedUrl, vertical));
+          setFbIframeSrc(buildIframeSrc(resolvedUrl, aspect));
         })
         .catch(() => {
           // Fallback: use original URL with heuristic ratio
           const vertical = originalUrl.includes('/reel/') || originalUrl.includes('/share/r/');
+          const aspect = vertical ? '9/16' : '16/9';
           setIsFbVertical(vertical);
-          setFbAspect(vertical ? '9/16' : '16/9');
-          setFbIframeSrc(buildIframeSrc(originalUrl, vertical));
+          setFbAspect(aspect);
+          setFbIframeSrc(buildIframeSrc(originalUrl, aspect));
         });
     } else {
-      // Direct link — use embed.url from parser (already a plugins/video.php URL) 
-      // but extract & rebuild with proper dimensions
+      // Direct link — still resolve via our API to get the real aspect ratio
+      // instead of guessing from the URL pattern alone.
       const vertical = originalUrl.includes('/reel/') || embed.isVertical === true;
+      const aspect = vertical ? '9/16' : '16/9';
       setIsFbVertical(vertical);
-      setFbAspect(vertical ? '9/16' : '16/9');
-      setFbIframeSrc(buildIframeSrc(originalUrl, vertical));
+      setFbAspect(aspect);
+      setFbIframeSrc(buildIframeSrc(originalUrl, aspect));
     }
   }, [embed.type, embed.originalUrl, embed.isVertical]);
 
