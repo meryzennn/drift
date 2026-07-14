@@ -5,6 +5,7 @@ All notable changes to Drift will be documented here.
 ## [1.5.0] - 2026-07-14
 
 ### Added
+- Dynamic hashtag badges in explore with trending algorithm and usage tracking
 - Personalized feed ranking with engagement scoring and time decay
 - GIF upload support (no compression for GIFs)
 - Conversation search in messages hub

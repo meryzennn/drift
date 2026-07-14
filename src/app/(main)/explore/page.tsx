@@ -11,8 +11,6 @@ import Link from "next/link";
 import { Virtuoso } from "react-virtuoso";
 import { rankPosts, EXPLORE_WEIGHTS } from "@/utils/feedAlgorithm";
 
-const TABS = ["Trending", "DeFi", "NFTs", "Infrastructure", "Airdrop", "dApp"];
-
 interface UserResult {
   wallet_address: string;
   username: string;
@@ -40,6 +38,8 @@ function ExploreContent() {
   const [userResults, setUserResults] = useState<UserResult[]>([]);
   const [query, setQuery] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(true);
+  const [trendingHashtags, setTrendingHashtags] = useState<string[]>(['Trending']);
+  const [isLoadingHashtags, setIsLoadingHashtags] = useState(true);
 
   const fetchTrending = useCallback(async () => {
     setIsLoading(true);
@@ -89,13 +89,81 @@ function ExploreContent() {
     }
   }, []);
 
+  const fetchByHashtag = useCallback(async (hashtag: string) => {
+    setIsLoading(true);
+    setUserResults([]);
+    try {
+      const normalized = hashtag.replace(/^#/, '').toLowerCase();
+
+      const { data: hashtagData } = await supabase
+        .from('hashtags')
+        .select('id')
+        .eq('tag', normalized)
+        .single();
+
+      if (!hashtagData) {
+        setPosts([]);
+        return;
+      }
+
+      const { data: postHashtags } = await supabase
+        .from('post_hashtags')
+        .select('post_id')
+        .eq('hashtag_id', hashtagData.id);
+
+      if (!postHashtags || postHashtags.length === 0) {
+        setPosts([]);
+        return;
+      }
+
+      const postIds = postHashtags.map(ph => ph.post_id);
+
+      const { data: postData } = await supabase
+        .from('posts')
+        .select(POST_SELECT_QUERY)
+        .in('id', postIds)
+        .is('reply_to_post_id', null)
+        .limit(50);
+
+      const mappedPosts = (postData || []).map(mapPostData);
+      const rankedPosts = rankPosts(mappedPosts, EXPLORE_WEIGHTS);
+      setPosts(rankedPosts.slice(0, 20));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchTrendingHashtags = async () => {
+      try {
+        const res = await fetch('/api/hashtags/trending?limit=8');
+        const data = await res.json();
+        setTrendingHashtags(['Trending', ...data.hashtags.map((h: any) => h.display_tag)]);
+      } catch (error) {
+        console.error('Error fetching trending hashtags:', error);
+        setTrendingHashtags(['Trending']);
+      } finally {
+        setIsLoadingHashtags(false);
+      }
+    };
+    fetchTrendingHashtags();
+  }, []);
+
   useEffect(() => {
     if (query) {
-      fetchByKeyword(query);
+      const matchesHashtag = trendingHashtags.some(
+        tag => tag.replace(/^#/, '').toLowerCase() === query.toLowerCase()
+      );
+
+      if (matchesHashtag) {
+        fetchByHashtag(query);
+      } else {
+        fetchByKeyword(query);
+      }
     } else {
       fetchTrending();
     }
-  }, [query, fetchTrending, fetchByKeyword]);
+  }, [query, trendingHashtags, fetchByHashtag, fetchByKeyword, fetchTrending]);
 
   // Sync with URL param
   useEffect(() => {
@@ -105,11 +173,11 @@ function ExploreContent() {
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
-    const keyword = tab === "Trending" ? "" : tab;
-    if (keyword) {
-      router.push(`/explore?q=${encodeURIComponent(keyword)}`);
-    } else {
+    if (tab === "Trending") {
       router.push("/explore");
+    } else {
+      const normalized = tab.replace(/^#/, '');
+      router.push(`/explore?q=${encodeURIComponent(normalized)}`);
     }
   };
 
@@ -143,19 +211,31 @@ function ExploreContent() {
         </div>
         {/* Tabs */}
         <div className="flex overflow-x-auto hide-scrollbar gap-sm pb-sm mt-sm">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => handleTabClick(tab)}
-              className={`px-md py-xs rounded-full font-label-md cursor-pointer whitespace-nowrap transition-colors shrink-0 ${
-                (tab === "Trending" && !query) || query?.toLowerCase() === tab.toLowerCase()
-                  ? "bg-primary text-background"
-                  : "bg-surface-container-high text-on-surface hover:bg-surface-container-highest"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+          {isLoadingHashtags ? (
+            <div className="flex gap-sm">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-8 w-20 bg-surface-container-high rounded-full animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            trendingHashtags.map((tab) => {
+              const isActive = (tab === "Trending" && !query) ||
+                               query?.toLowerCase() === tab.replace(/^#/, '').toLowerCase();
+              return (
+                <button
+                  key={tab}
+                  onClick={() => handleTabClick(tab)}
+                  className={`px-md py-xs rounded-full font-label-md cursor-pointer whitespace-nowrap transition-colors shrink-0 ${
+                    isActive
+                      ? "bg-primary text-background"
+                      : "bg-surface-container-high text-on-surface hover:bg-surface-container-highest"
+                  }`}
+                >
+                  {tab}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 

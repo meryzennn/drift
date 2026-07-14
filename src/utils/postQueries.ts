@@ -17,6 +17,12 @@ export const POST_SELECT_QUERY = `
   replies:posts!reply_to_post_id ( count ),
   reposts ( count ),
   quotes:posts!quote_post_id ( count ),
+  post_hashtags (
+    hashtags (
+      tag,
+      display_tag
+    )
+  ),
   tips:notifications!notifications_post_id_fkey (
     actor_wallet,
     amount,
@@ -54,6 +60,10 @@ export function mapPostData(p: any): Post {
       avatar_url: t.actor?.avatar_url,
     }));
 
+  const hashtags = (p.post_hashtags || [])
+    .map((ph: any) => ph.hashtags?.tag)
+    .filter(Boolean);
+
   return {
     id: p.id,
     authorPublicKey: p.author_wallet,
@@ -72,6 +82,7 @@ export function mapPostData(p: any): Post {
     replyToPostId: p.reply_to_post_id,
     totalTips,
     topTippers,
+    hashtags,
     quotePost: quoteData ? {
       id: quoteData.id,
       authorPublicKey: quoteData.author_wallet,

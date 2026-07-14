@@ -24,6 +24,7 @@ export interface Post {
   totalTips?: number;
   topTippers?: { from_wallet: string; amount: number; username?: string; avatar_url?: string }[];
   algorithmScore?: number;
+  hashtags?: string[];
 }
 
 export interface Comment {
@@ -38,6 +39,15 @@ export interface Comment {
     displayName: string;
     avatarUrl?: string;
   };
+}
+
+export interface Hashtag {
+  id: string;
+  tag: string;
+  display_tag: string;
+  usage_count: number;
+  last_used_at: string;
+  created_at: string;
 }
 
 export interface AppNotification {
