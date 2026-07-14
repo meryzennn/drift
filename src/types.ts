@@ -23,6 +23,7 @@ export interface Post {
   replyToUsername?: string;
   totalTips?: number;
   topTippers?: { from_wallet: string; amount: number; username?: string; avatar_url?: string }[];
+  algorithmScore?: number;
 }
 
 export interface Comment {

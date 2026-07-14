@@ -12,6 +12,7 @@ import { Virtuoso } from "react-virtuoso";
 import { useRef } from "react";
 import { resolveFbEmbed } from "@/lib/fbEmbedResolver";
 import { parseEmbeds } from "@/utils/embedParser";
+import { rankPersonalizedPosts, HOME_WEIGHTS, calculatePostScore } from "@/utils/feedAlgorithm";
 
 interface FeedItem {
   type: "post" | "activity";
@@ -69,6 +70,25 @@ export default function Feed({ posts }: FeedProps) {
     setNewPostsCount(0);
   }, [posts]);
 
+  // Optimistic update: inject new post from sessionStorage
+  useEffect(() => {
+    const newPostJson = sessionStorage.getItem('newPost');
+    if (newPostJson) {
+      try {
+        const newPost = JSON.parse(newPostJson);
+        setInternalPosts(prev => {
+          // Check if post already exists to avoid duplicates
+          if (prev.some(p => p.id === newPost.id)) return prev;
+          return [newPost, ...prev];
+        });
+        sessionStorage.removeItem('newPost');
+      } catch (e) {
+        console.error('Failed to parse new post:', e);
+        sessionStorage.removeItem('newPost');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!publicKey) {
       setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
@@ -99,8 +119,22 @@ export default function Feed({ posts }: FeedProps) {
         .eq("follower_wallet", publicKey.toString());
 
       const followedWallets = (followData || []).map((f: any) => f.following_wallet);
+
+      // Rank posts with personalized boost for following
+      const rankedPosts = rankPersonalizedPosts(
+        internalPosts,
+        followedWallets,
+        1.5,
+        HOME_WEIGHTS,
+        publicKey?.toString()
+      );
+
       if (followedWallets.length === 0) {
-        setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+        setFeedItems(rankedPosts.map(p => ({
+          type: "post",
+          post: p,
+          sortKey: p.algorithmScore?.toString() || p.createdAt
+        })));
         return;
       }
 
@@ -165,16 +199,52 @@ export default function Feed({ posts }: FeedProps) {
         });
       }
 
+      // Deduplicate: exclude posts already shown as activity items
       const merged: FeedItem[] = [
-        ...internalPosts.map(p => ({ type: "post" as const, post: p, sortKey: p.createdAt })),
+        ...rankedPosts
+          .filter(p => !seenPostIds.has(p.id))
+          .map(p => ({
+            type: "post" as const,
+            post: p,
+            sortKey: p.algorithmScore?.toString() || p.createdAt
+          })),
         ...activityItems,
       ];
 
-      merged.sort((a, b) => new Date(b.sortKey).getTime() - new Date(a.sortKey).getTime());
+      // Sort: everything by comparable score (user's posts always first)
+      merged.sort((a, b) => {
+        // User's own posts get massive boost to always appear first
+        const aIsOwn = publicKey && a.post.authorPublicKey === publicKey.toString();
+        const bIsOwn = publicKey && b.post.authorPublicKey === publicKey.toString();
+
+        if (aIsOwn && !bIsOwn) return -1;
+        if (bIsOwn && !aIsOwn) return 1;
+
+        // For activity items, convert timestamp to score scale (recent activities rank high)
+        const aScore = a.type === "post" && a.post.algorithmScore
+          ? a.post.algorithmScore
+          : calculatePostScore(a.post, HOME_WEIGHTS, new Date());
+        const bScore = b.type === "post" && b.post.algorithmScore
+          ? b.post.algorithmScore
+          : calculatePostScore(b.post, HOME_WEIGHTS, new Date());
+
+        return bScore - aScore;
+      });
       setFeedItems(merged);
     } catch (err) {
       console.error("Tip activity error:", err);
-      setFeedItems(internalPosts.map(p => ({ type: "post", post: p, sortKey: p.createdAt })));
+      const rankedPosts = rankPersonalizedPosts(
+        internalPosts,
+        [],
+        1,
+        HOME_WEIGHTS,
+        publicKey?.toString()
+      );
+      setFeedItems(rankedPosts.map(p => ({
+        type: "post",
+        post: p,
+        sortKey: p.algorithmScore?.toString() || p.createdAt
+      })));
     } finally {
       setLoadingTipActivity(false);
     }

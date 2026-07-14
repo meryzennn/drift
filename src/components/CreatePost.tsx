@@ -150,6 +150,24 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
         }
       }
 
+      // Optimistic update: store new post for immediate feed injection
+      const newPost = {
+        id: data.id,
+        authorPublicKey: publicKey.toString(),
+        content,
+        imageUrl: mediaUrl,
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        authorProfile: avatarUrl || currentUsername ? {
+          username: currentUsername || undefined,
+          displayName: currentUsername || undefined,
+          avatarUrl: avatarUrl || undefined,
+        } : undefined,
+        commentsCount: 0,
+        repostsCount: 0,
+      };
+      sessionStorage.setItem('newPost', JSON.stringify(newPost));
+
       // 3. Reset and Refresh
       setContent("");
       setFiles([]);

@@ -9,6 +9,7 @@ import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso } from "react-virtuoso";
+import { rankPosts, EXPLORE_WEIGHTS } from "@/utils/feedAlgorithm";
 
 const TABS = ["Trending", "DeFi", "NFTs", "Infrastructure", "Airdrop", "dApp"];
 
@@ -44,13 +45,19 @@ function ExploreContent() {
     setIsLoading(true);
     setUserResults([]);
     try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
       const { data } = await supabase
         .from("posts")
         .select(POST_SELECT_QUERY)
         .is("reply_to_post_id", null)
-        .order("likes", { ascending: false })
-        .limit(20);
-      setPosts((data || []).map(mapPostData));
+        .gte("created_at", sevenDaysAgo.toISOString())
+        .limit(200);
+
+      const mappedPosts = (data || []).map(mapPostData);
+      const rankedPosts = rankPosts(mappedPosts, EXPLORE_WEIGHTS);
+      setPosts(rankedPosts.slice(0, 20));
     } finally {
       setIsLoading(false);
     }
@@ -65,15 +72,17 @@ function ExploreContent() {
           .select(POST_SELECT_QUERY)
           .ilike("content", `%${keyword}%`)
           .is("reply_to_post_id", null)
-          .order("likes", { ascending: false })
-          .limit(20),
+          .limit(50),
         supabase
           .from("users")
           .select("wallet_address, username, display_name, avatar_url")
           .or(`username.ilike.%${keyword}%,display_name.ilike.%${keyword}%,wallet_address.ilike.%${keyword}%`)
           .limit(6),
       ]);
-      setPosts((postData || []).map(mapPostData));
+
+      const mappedPosts = (postData || []).map(mapPostData);
+      const rankedPosts = rankPosts(mappedPosts, EXPLORE_WEIGHTS);
+      setPosts(rankedPosts.slice(0, 20));
       setUserResults(userData || []);
     } finally {
       setIsLoading(false);
