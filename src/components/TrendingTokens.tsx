@@ -98,7 +98,12 @@ export default function TrendingTokens() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-label-md font-bold text-on-surface truncate">{token.symbol}</div>
+                  <div className="flex items-center gap-1">
+                    <div className="font-label-md font-bold text-on-surface truncate">{token.symbol}</div>
+                    {token.mint === 'So11111111111111111111111111111111111111112' && (
+                      <span className="material-symbols-outlined text-[14px] text-primary" title="Pinned">push_pin</span>
+                    )}
+                  </div>
                   <div className="text-outline text-[12px] font-body-sm truncate">{token.name}</div>
                 </div>
                 <div className="text-right shrink-0">
