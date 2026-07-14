@@ -11,7 +11,7 @@ interface AnimatedPriceProps {
 export default function AnimatedPrice({ price, decimals, className = "" }: AnimatedPriceProps) {
   const [prevPrice, setPrevPrice] = useState(price);
   const [animation, setAnimation] = useState<"up" | "down" | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     if (price !== prevPrice) {

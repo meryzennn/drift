@@ -40,7 +40,35 @@ export async function GET(request: Request) {
     }));
 
     const solIndex = mappedTokens.findIndex((t: any) => t.mint === SOL_MINT);
-    if (solIndex > 0) {
+
+    if (solIndex === -1) {
+      const solRes = await fetch(
+        `https://api.jup.ag/tokens/v2/search?query=${SOL_MINT}`,
+        {
+          headers: {
+            'x-api-key': JUPITER_API_KEY,
+          },
+        }
+      );
+
+      if (solRes.ok) {
+        const solData = await solRes.json();
+        if (solData && solData.length > 0) {
+          const solToken = solData[0];
+          mappedTokens.unshift({
+            mint: solToken.id,
+            symbol: solToken.symbol,
+            name: solToken.name,
+            logo: solToken.icon,
+            price: solToken.usdPrice || 0,
+            priceChange24h: solToken.stats24h?.priceChange || 0,
+            volume24h: (solToken.stats24h?.buyVolume || 0) + (solToken.stats24h?.sellVolume || 0),
+            liquidity: solToken.liquidity || 0,
+            marketCap: solToken.mcap || 0,
+          });
+        }
+      }
+    } else if (solIndex > 0) {
       const solToken = mappedTokens.splice(solIndex, 1)[0];
       mappedTokens.unshift(solToken);
     }

@@ -97,16 +97,6 @@ export default function TokenPage() {
             <div>
               <h1 className="font-headline-md text-headline-md font-bold text-on-surface">{tokenData.symbol}</h1>
               <p className="text-on-surface-variant text-[14px] font-mono">{tokenData.name}</p>
-              <div className="flex items-center gap-xs mt-xs">
-                <code className="text-outline text-[11px] font-mono">{mint.slice(0, 4)}...{mint.slice(-4)}</code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(mint)}
-                  className="text-outline hover:text-on-surface-variant transition-colors"
-                  title="Copy address"
-                >
-                  <span className="material-symbols-outlined text-[14px]">content_copy</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>

@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { mint: string } }
+  { params }: { params: Promise<{ mint: string }> }
 ) {
-  const mint = params.mint;
+  const { mint } = await params;
 
   try {
     // Fetch price from Jupiter Price API v2

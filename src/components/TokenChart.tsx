@@ -46,6 +46,14 @@ export default function TokenChart({ mint }: TokenChartProps) {
         timeVisible: true,
         secondsVisible: false,
       },
+      localization: {
+        priceFormatter: (price: number) => {
+          if (price < 0.001) return price.toFixed(8);
+          if (price < 0.01) return price.toFixed(6);
+          if (price < 1) return price.toFixed(4);
+          return price.toFixed(2);
+        },
+      },
     });
 
     const lineSeries = chart.addSeries(LineSeries, {
