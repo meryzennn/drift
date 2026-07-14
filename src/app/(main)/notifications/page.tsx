@@ -190,7 +190,7 @@ export default function NotificationsPage() {
   // Mark all as read when page loads
   useEffect(() => {
     if (!publicKey || notifications.length === 0) return;
-    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
+    const unreadIds = notifications.filter((n) => !n.is_read && n.type !== "message").map((n) => n.id);
     if (unreadIds.length === 0) return;
     supabase
       .from("notifications")
