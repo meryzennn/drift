@@ -1,0 +1,422 @@
+> ## Documentation Index
+>
+> Fetch the complete documentation index at: https://dev.jup.ag/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# How to Get Token Information on Solana
+
+> Search tokens, get metadata, verification status, and trading stats for any Solana token using Jupiter's Tokens API.
+
+## TL;DR
+
+Jupiter's Tokens API is the most widely used token data source on Solana. Search any token by name, symbol, or mint address and get metadata, verification status, organic score, and trading stats. Used by Phantom, Solflare, and most Solana apps.
+
+**Base URL:** `https://api.jup.ag`
+
+<Tip>
+  **Video walkthrough + source code:** Watch the [video walkthrough](https://x.com/JupDevRel/status/2031184726820794624) and grab the [demo app source code](https://github.com/jup-ag/api-examples/tree/main/apps/tokens-api) on GitHub.
+</Tip>
+
+---
+
+## Prerequisites
+
+1. Get an API key at [Portal](https://developers.jup.ag/portal)
+2. All requests require the `x-api-key` header
+
+---
+
+## Quick start
+
+```bash theme={null}
+curl -X GET "https://api.jup.ag/tokens/v2/search?query=JUP" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+Response (array of matching tokens):
+
+```json theme={null}
+[
+  {
+    "id": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "name": "Jupiter",
+    "symbol": "JUP",
+    "icon": "https://static.jup.ag/jup/icon.png",
+    "decimals": 6,
+    "isVerified": true,
+    "organicScore": 98.08,
+    "organicScoreLabel": "high",
+    "usdPrice": 0.1424,
+    "mcap": 461995714.68,
+    "holderCount": 857247,
+    "tags": ["verified", "community", "strict"]
+  }
+]
+```
+
+---
+
+## When you need this
+
+You're building something that needs Solana token data:
+
+- **Wallet** — Display token names, symbols, icons
+- **Trading interface** — Token search, verification badges
+- **Portfolio tracker** — Metadata, holder count, market cap
+- **Analytics dashboard** — Trading volume, organic score, liquidity
+- **Trading bot** — Filter tokens by metrics, find new listings
+
+Common searches that lead here:
+
+- "solana token metadata api"
+- "get token logo solana"
+- "token verification solana"
+- "trending tokens solana api"
+
+---
+
+## Why Jupiter
+
+Jupiter maintains the most comprehensive token database on Solana:
+
+- **580k+ tokens indexed** with metadata
+- **Verification system** trusted by major Solana wallets
+- **Organic Score** distinguishes real trading from wash trading
+- **Real-time stats** across 5m, 1h, 6h, 24h windows
+
+The same data powers jup.ag and is used by Phantom, Solflare, and most Solana apps.
+
+---
+
+## API Reference
+
+**Base URL:** `https://api.jup.ag`
+
+| Endpoint                               | Description                           |
+| -------------------------------------- | ------------------------------------- |
+| `GET /tokens/v2/search?query={query}`  | Search by mint, symbol, or name       |
+| `GET /tokens/v2/tag?query={tag}`       | Get tokens by tag (`verified`, `lst`) |
+| `GET /tokens/v2/{category}/{interval}` | Get trending/top tokens               |
+| `GET /tokens/v2/recent`                | Get recently listed tokens            |
+
+---
+
+## Code examples
+
+### Search by mint, symbol, or name
+
+<CodeGroup>
+  ```bash curl theme={null}
+  curl -X GET "https://api.jup.ag/tokens/v2/search?query=JUP" \
+    -H "x-api-key: YOUR_API_KEY"
+  ```
+
+```javascript JavaScript theme={null}
+const response = await fetch("https://api.jup.ag/tokens/v2/search?query=JUP", {
+  headers: {
+    "x-api-key": "YOUR_API_KEY",
+  },
+});
+
+if (!response.ok) {
+  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+}
+
+const tokens = await response.json();
+```
+
+```python Python theme={null}
+import requests
+
+response = requests.get(
+    'https://api.jup.ag/tokens/v2/search',
+    params={'query': 'JUP'},
+    headers={'x-api-key': 'YOUR_API_KEY'}
+)
+response.raise_for_status()
+tokens = response.json()
+```
+
+</CodeGroup>
+
+**Query options:**
+
+- Mint address: `So11111111111111111111111111111111111111112`
+- Symbol: `SOL`, `JUP`, `USDC`
+- Name: `Jupiter`, `Wrapped SOL`
+- Multiple (comma-separated): `SOL,JUP,USDC` (max 100)
+
+### Get all verified tokens
+
+<CodeGroup>
+  ```bash curl theme={null}
+  curl -X GET "https://api.jup.ag/tokens/v2/tag?query=verified" \
+    -H "x-api-key: YOUR_API_KEY"
+  ```
+
+```javascript JavaScript theme={null}
+const response = await fetch(
+  "https://api.jup.ag/tokens/v2/tag?query=verified",
+  {
+    headers: { "x-api-key": "YOUR_API_KEY" },
+  },
+);
+const verifiedTokens = await response.json();
+```
+
+</CodeGroup>
+
+**Available tags:** `verified`, `lst` (liquid staking tokens)
+
+### Get trending tokens
+
+<CodeGroup>
+  ```bash curl theme={null}
+  curl -X GET "https://api.jup.ag/tokens/v2/toptrending/1h?limit=50" \
+    -H "x-api-key: YOUR_API_KEY"
+  ```
+
+```javascript JavaScript theme={null}
+const response = await fetch(
+  "https://api.jup.ag/tokens/v2/toptrending/1h?limit=50",
+  {
+    headers: { "x-api-key": "YOUR_API_KEY" },
+  },
+);
+const trending = await response.json();
+```
+
+</CodeGroup>
+
+**Categories:**
+
+- `toptrending` — Most price movement
+- `toptraded` — Highest volume
+- `toporganicscore` — Highest organic (real) activity
+
+**Intervals:** `5m`, `1h`, `6h`, `24h`
+
+### Get recently listed tokens
+
+```bash theme={null}
+curl -X GET "https://api.jup.ag/tokens/v2/recent" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+Returns tokens ordered by first pool creation time (not mint time).
+
+---
+
+## Response format
+
+### TypeScript types
+
+```typescript expandable theme={null}
+interface TokenInfo {
+  // Identity
+  id: string; // Mint address
+  name: string;
+  symbol: string;
+  icon: string | null; // Logo URL
+  decimals: number;
+  tokenProgram: string; // SPL Token or Token-2022 program address
+  createdAt: string; // Token creation timestamp
+
+  // Social (optional, varies per token)
+  twitter?: string;
+  website?: string;
+  discord?: string;
+  instagram?: string;
+  tiktok?: string;
+  otherUrl?: string;
+  dev?: string; // Developer wallet address
+
+  // Supply
+  circSupply: number | null;
+  totalSupply: number | null;
+
+  // Market data
+  fdv: number | null; // Fully diluted valuation
+  mcap: number | null; // Market cap in USD
+  usdPrice: number | null;
+  priceBlockId: number | null; // Solana block for price recency
+  liquidity: number | null; // Total liquidity in USD
+  holderCount: number | null;
+  apy?: { jupEarn: number }; // APY from Jupiter Lend's Earn (only present for listed assets)
+
+  // Quality & verification
+  organicScore: number; // 0-100
+  organicScoreLabel: "high" | "medium" | "low";
+  isVerified: boolean | null;
+  tags: string[] | null; // e.g., ["verified", "community", "strict"]
+
+  // Audit (all fields conditional — present based on token characteristics)
+  audit: {
+    isSus?: boolean; // Flagged as suspicious (only present when true)
+    mintAuthorityDisabled?: boolean;
+    freezeAuthorityDisabled?: boolean;
+    topHoldersPercentage?: number; // % held by top holders
+    devBalancePercentage?: number; // % held by developer
+    devMints?: number; // Number of developer mints
+  } | null;
+
+  // Launch info (conditional)
+  firstPool?: { id: string; createdAt: string } | null;
+
+  // Trading stats (each window has the same shape)
+  stats5m?: SwapStats | null;
+  stats1h?: SwapStats | null;
+  stats6h?: SwapStats | null;
+  stats24h?: SwapStats | null;
+  updatedAt: string; // Last data update timestamp
+}
+
+interface SwapStats {
+  priceChange?: number; // Percentage
+  holderChange?: number;
+  liquidityChange?: number;
+  volumeChange?: number;
+  buyVolume?: number;
+  sellVolume?: number;
+  buyOrganicVolume?: number;
+  sellOrganicVolume?: number;
+  numBuys?: number;
+  numSells?: number;
+  numTraders?: number;
+  numOrganicBuyers?: number;
+  numNetBuyers?: number;
+}
+```
+
+### Example response
+
+```json theme={null}
+{
+  "id": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+  "name": "Jupiter",
+  "symbol": "JUP",
+  "icon": "https://static.jup.ag/jup/icon.png",
+  "decimals": 6,
+  "twitter": "https://twitter.com/JupiterExchange",
+  "website": "https://jup.ag",
+  "dev": "JUPhop9E8ZfdJ5FNHhxQt4uAih822Vs4QpqsWcewFbq",
+  "circSupply": 3243891294.88,
+  "totalSupply": 6863982654.38,
+  "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "firstPool": {
+    "id": "2pspvjWWaf3dNgt3jsgSzFCNvMGPb7t8FrEYvLGjvcCe",
+    "createdAt": "2024-01-29T17:33:29Z"
+  },
+  "holderCount": 857247,
+  "audit": {
+    "mintAuthorityDisabled": true,
+    "freezeAuthorityDisabled": true,
+    "topHoldersPercentage": 15.45
+  },
+  "organicScore": 98.08,
+  "organicScoreLabel": "high",
+  "isVerified": true,
+  "tags": ["birdeye-trending", "community", "strict", "verified"],
+  "createdAt": "2024-06-07T10:56:42.584Z",
+  "fdv": 977569925.64,
+  "mcap": 461995714.68,
+  "usdPrice": 0.1424,
+  "priceBlockId": 402109205,
+  "liquidity": 3002636.41,
+  "stats24h": {
+    "priceChange": -7.82,
+    "holderChange": -0.03,
+    "liquidityChange": -7.09,
+    "volumeChange": 29.09,
+    "buyVolume": 1811347.33,
+    "sellVolume": 1997486.55,
+    "buyOrganicVolume": 173368.01,
+    "sellOrganicVolume": 611999.99,
+    "numBuys": 34025,
+    "numSells": 31278,
+    "numTraders": 5200,
+    "numOrganicBuyers": 291,
+    "numNetBuyers": 1201
+  },
+  "updatedAt": "2026-02-23T03:54:14.460Z"
+}
+```
+
+### Error responses
+
+**Token not found:**
+
+```json theme={null}
+[]
+```
+
+**Invalid API key (401):**
+
+```json theme={null}
+{
+  "code": 401,
+  "message": "Unauthorized"
+}
+```
+
+**Rate limited (429):**
+
+```json theme={null}
+{
+  "message": "Rate limit exceeded"
+}
+```
+
+---
+
+## Evaluating token safety
+
+Use these fields to assess risk:
+
+| Field                           | Safe                 | Risky                         |
+| ------------------------------- | -------------------- | ----------------------------- |
+| `isVerified`                    | `true`               | `false`                       |
+| `organicScoreLabel`             | `"high"`             | `"low"`                       |
+| `audit.mintAuthorityDisabled`   | `true`               | `false` (can mint more)       |
+| `audit.freezeAuthorityDisabled` | `true`               | `false` (can freeze)          |
+| `audit.isSus`                   | absent (not flagged) | `true` (flagged)              |
+| `audit.topHoldersPercentage`    | Low (e.g., \< 20%)   | High concentration            |
+| `audit.devBalancePercentage`    | Low                  | High (dev holds large supply) |
+
+Note: `audit` fields are conditional. `isSus` is only present when the token is flagged as suspicious — not all risky tokens will have this flag.
+
+---
+
+## Common questions
+
+<AccordionGroup>
+  <Accordion title="How do I get a token's logo?">
+    The `icon` field contains a URL to the token's logo image. Always verify the URL is from a trusted domain before displaying.
+  </Accordion>
+
+  <Accordion title="What does organic score mean?">
+    Organic score (0-100) measures real trading activity vs wash trading. Higher = more legitimate trading. See [Organic Score docs](/tokens#organic-score) for methodology.
+  </Accordion>
+
+  <Accordion title="How often is data updated?">
+    Token metadata updates continuously. Trading stats (`stats5m`, `stats1h`, etc.) reflect real-time market activity.
+  </Accordion>
+
+  <Accordion title="Why is a token returning empty?">
+    The token either doesn't exist or hasn't had a pool created yet. Use the mint address directly to verify.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+**Need token prices too?** Once you have the token mint address, get its current USD price with the [Price API](/guides/how-to-get-token-price).
+
+---
+
+## Next steps
+
+- **[Tokens API Reference](/api-reference/tokens/search)** — Full endpoint schemas
+- **[Organic Score](/tokens#organic-score)** — Scoring methodology
+- **[Get Token Prices](/guides/how-to-get-token-price)** — USD prices for tokens
+- **[Portal](https://developers.jup.ag/portal)** — Get your API key
+- **[Jupiter Dev Notifications](https://t.me/jup_dev)** — API updates and announcements

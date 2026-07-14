@@ -36,6 +36,7 @@ function ExploreContent() {
   const [activeTab, setActiveTab] = useState("Trending");
   const [posts, setPosts] = useState<Post[]>([]);
   const [userResults, setUserResults] = useState<UserResult[]>([]);
+  const [tokens, setTokens] = useState<any[]>([]);
   const [query, setQuery] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(true);
   const [trendingHashtags, setTrendingHashtags] = useState<string[]>(['Trending']);
@@ -133,15 +134,28 @@ function ExploreContent() {
     }
   }, []);
 
+  const fetchTokens = useCallback(async () => {
+    setIsLoading(true);
+    setUserResults([]);
+    setPosts([]);
+    try {
+      const res = await fetch('/api/tokens/trending?limit=50');
+      const data = await res.json();
+      setTokens(data.tokens || []);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchTrendingHashtags = async () => {
       try {
         const res = await fetch('/api/hashtags/trending?limit=8');
         const data = await res.json();
-        setTrendingHashtags(['Trending', ...data.hashtags.map((h: any) => h.display_tag)]);
+        setTrendingHashtags(['Trending', 'Tokens', ...data.hashtags.map((h: any) => h.display_tag)]);
       } catch (error) {
         console.error('Error fetching trending hashtags:', error);
-        setTrendingHashtags(['Trending']);
+        setTrendingHashtags(['Trending', 'Tokens']);
       } finally {
         setIsLoadingHashtags(false);
       }
@@ -161,7 +175,11 @@ function ExploreContent() {
   }, []);
 
   useEffect(() => {
-    if (query) {
+    const tab = searchParams.get("tab");
+    if (tab === "tokens") {
+      setActiveTab("Tokens");
+      fetchTokens();
+    } else if (query) {
       const matchesHashtag = trendingHashtags.some(
         tag => tag.replace(/^#/, '').toLowerCase() === query.toLowerCase()
       );
@@ -174,7 +192,7 @@ function ExploreContent() {
     } else {
       fetchTrending();
     }
-  }, [query, trendingHashtags, fetchByHashtag, fetchByKeyword, fetchTrending]);
+  }, [query, searchParams, trendingHashtags, fetchByHashtag, fetchByKeyword, fetchTrending, fetchTokens]);
 
   // Sync with URL param
   useEffect(() => {
@@ -186,6 +204,8 @@ function ExploreContent() {
     setActiveTab(tab);
     if (tab === "Trending") {
       router.push("/explore");
+    } else if (tab === "Tokens") {
+      router.push("/explore?tab=tokens");
     } else {
       const normalized = tab.replace(/^#/, '');
       router.push(`/explore?q=${encodeURIComponent(normalized)}`);
@@ -230,7 +250,8 @@ function ExploreContent() {
             </div>
           ) : (
             trendingHashtags.map((tab) => {
-              const isActive = (tab === "Trending" && !query) ||
+              const isActive = (tab === "Trending" && !query && !searchParams.get("tab")) ||
+                               (tab === "Tokens" && searchParams.get("tab") === "tokens") ||
                                query?.toLowerCase() === tab.replace(/^#/, '').toLowerCase();
               return (
                 <button
@@ -280,37 +301,87 @@ function ExploreContent() {
         </div>
       )}
 
+      {/* Tokens Grid */}
+      {searchParams.get("tab") === "tokens" && (
+        isLoading ? (
+          <div className="flex justify-center py-2xl">
+            <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : tokens.length === 0 ? (
+          <div className="text-center py-2xl">
+            <span className="material-symbols-outlined text-[48px] text-outline block mb-sm">token</span>
+            <p className="text-on-surface-variant font-body-md">No trending tokens right now</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-md">
+            {tokens.map((token) => (
+              <Link
+                key={token.mint}
+                href={`/token/${token.mint}`}
+                className="bg-surface-container border border-outline-variant rounded-xl p-md hover:bg-surface-container-high transition-colors min-h-[88px] flex flex-col justify-between"
+              >
+                <div className="flex items-start gap-sm mb-sm">
+                  <div className="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden shrink-0">
+                    {token.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-primary/20" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-label-md font-bold text-on-surface truncate">{token.symbol}</div>
+                    <div className="text-outline text-[11px] font-body-sm truncate">{token.name}</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-mono text-[14px] text-on-surface mb-xs">${token.price < 1 ? token.price.toFixed(4) : token.price.toFixed(2)}</div>
+                  <div className={`flex items-center gap-0.5 text-[12px] font-mono ${token.priceChange24h >= 0 ? 'text-secondary' : 'text-error'}`}>
+                    <span className="material-symbols-outlined text-[14px]">
+                      {token.priceChange24h >= 0 ? 'arrow_upward' : 'arrow_downward'}
+                    </span>
+                    {Math.abs(token.priceChange24h).toFixed(2)}%
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )
+      )}
+
       {/* Posts */}
-      {isLoading ? (
-        <div className="flex justify-center py-2xl">
-          <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="text-center py-2xl">
-          <span className="material-symbols-outlined text-[48px] text-outline block mb-sm">search_off</span>
-          <p className="text-on-surface-variant font-body-md">
-            {query ? `No posts found for "${query}"` : "No posts yet"}
-          </p>
-        </div>
-      ) : (
-        <div className="relative">
-          {query && (
-            <p className="font-body-sm text-on-surface-variant px-xs mb-md">
-              Posts matching <span className="text-on-surface font-bold">&ldquo;{query}&rdquo;</span>
+      {!searchParams.get("tab") && (
+        isLoading ? (
+          <div className="flex justify-center py-2xl">
+            <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-2xl">
+            <span className="material-symbols-outlined text-[48px] text-outline block mb-sm">search_off</span>
+            <p className="text-on-surface-variant font-body-md">
+              {query ? `No posts found for "${query}"` : "No posts yet"}
             </p>
-          )}
-          <Virtuoso
-            useWindowScroll
-            data={posts}
-            computeItemKey={(index, post) => post.id}
-            overscan={400}
-            itemContent={itemContent}
-            initialTopMostItemIndex={getCache().index[cacheKey] || 0}
-            rangeChanged={(range) => {
-              getCache().index[cacheKey] = range.startIndex;
-            }}
-          />
-        </div>
+          </div>
+        ) : (
+          <div className="relative">
+            {query && (
+              <p className="font-body-sm text-on-surface-variant px-xs mb-md">
+                Posts matching <span className="text-on-surface font-bold">&ldquo;{query}&rdquo;</span>
+              </p>
+            )}
+            <Virtuoso
+              useWindowScroll
+              data={posts}
+              computeItemKey={(index, post) => post.id}
+              overscan={400}
+              itemContent={itemContent}
+              initialTopMostItemIndex={getCache().index[cacheKey] || 0}
+              rangeChanged={(range) => {
+                getCache().index[cacheKey] = range.startIndex;
+              }}
+            />
+          </div>
+        )
       )}
     </>
   );
