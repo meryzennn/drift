@@ -97,6 +97,27 @@ export default function Feed({ posts }: FeedProps) {
     fetchFollowerActivity();
   }, [publicKey, internalPosts]);
 
+  // Listen for post deletions and repost undos
+  useEffect(() => {
+    const handlePostDeleted = (e: any) => {
+      const { postId } = e.detail;
+      setInternalPosts(prev => prev.filter(p => p.id !== postId));
+    };
+
+    const handleRepostUndone = (e: any) => {
+      const { postId } = e.detail;
+      setInternalPosts(prev => prev.filter(p => p.id !== postId));
+    };
+
+    window.addEventListener("post-deleted", handlePostDeleted);
+    window.addEventListener("repost-undone", handleRepostUndone);
+
+    return () => {
+      window.removeEventListener("post-deleted", handlePostDeleted);
+      window.removeEventListener("repost-undone", handleRepostUndone);
+    };
+  }, []);
+
   // Prefetch Facebook embed aspect ratios in the background as soon as posts
   // land, so by the time Virtuoso mounts+measures the item, the real height
   // is already known — avoids the scrollHeight jump mid-scroll.

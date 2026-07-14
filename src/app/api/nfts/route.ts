@@ -8,13 +8,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing owner address' }, { status: 400 });
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY || process.env.HELIUS_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+  const endpoint = process.env.NEXT_PUBLIC_HELIUS_MAINNET_URL;
+  if (!endpoint) {
+    return NextResponse.json({ error: 'Helius mainnet URL not configured' }, { status: 500 });
   }
 
   try {
-    const response = await fetch(`https://mainnet.helius-rpc.com/?api-key=${apiKey}`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

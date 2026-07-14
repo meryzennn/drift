@@ -97,6 +97,28 @@ export default function DynamicProfilePage({ params }: { params: Promise<{ id: s
     }
   }, [id, publicKey]);
 
+  // Listen for post deletions and repost undos
+  useEffect(() => {
+    const handlePostDeleted = (e: any) => {
+      const { postId } = e.detail;
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      setReplies(prev => prev.filter(r => r.id !== postId));
+    };
+
+    const handleRepostUndone = (e: any) => {
+      const { postId } = e.detail;
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    };
+
+    window.addEventListener("post-deleted", handlePostDeleted);
+    window.addEventListener("repost-undone", handleRepostUndone);
+
+    return () => {
+      window.removeEventListener("post-deleted", handlePostDeleted);
+      window.removeEventListener("repost-undone", handleRepostUndone);
+    };
+  }, []);
+
   const fetchProfileData = async (identifier: string) => {
     try {
       setLoading(true);

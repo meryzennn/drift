@@ -1,7 +1,10 @@
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-// Devnet connection for testing
-const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+// Helius RPC connection for testing
+const connection = new Connection(
+  process.env.NEXT_PUBLIC_HELIUS_RPC_URL || "https://api.devnet.solana.com",
+  "confirmed"
+);
 
 export const sendTip = async (
   fromPublicKey: PublicKey,

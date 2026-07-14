@@ -19,6 +19,7 @@ All notable changes to Drift will be documented here.
 
 ### Fixed
 - Facebook embed aspect ratio resolution issues
+- Notification and message badges clearing each other when visiting either page
 
 ## [1.4.0] - 2026-07-10
 
