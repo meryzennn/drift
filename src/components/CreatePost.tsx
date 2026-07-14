@@ -106,8 +106,8 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
       if (files.length > 0) {
         const uploadPromises = files.map(async (file) => {
           let fileToUpload: File | Blob = file;
-          
-          if (file.type.startsWith("image/")) {
+
+          if (file.type.startsWith("image/") && file.type !== "image/gif") {
             try {
               fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
             } catch (error) {
