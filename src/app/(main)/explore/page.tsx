@@ -3,6 +3,7 @@
 import { Post } from "@/types";
 import PostCard from "@/components/PostCard";
 import SearchBar from "@/components/SearchBar";
+import AnimatedPrice from "@/components/AnimatedPrice";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { supabase } from "@/utils/supabase";
 import { POST_SELECT_QUERY, mapPostData } from "@/utils/postQueries";
@@ -314,11 +315,12 @@ function ExploreContent() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-md">
-            {tokens.map((token) => (
+            {tokens.map((token, index) => (
               <Link
                 key={token.mint}
                 href={`/token/${token.mint}`}
-                className="bg-surface-container border border-outline-variant rounded-xl p-md hover:bg-surface-container-high transition-colors min-h-[88px] flex flex-col justify-between"
+                className="bg-surface-container border border-outline-variant rounded-xl p-md hover:bg-surface-container-high transition-all duration-300 hover:scale-[1.02] hover:shadow-lg min-h-[88px] flex flex-col justify-between animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <div className="flex items-start gap-sm mb-sm">
                   <div className="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden shrink-0">
@@ -335,7 +337,7 @@ function ExploreContent() {
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[14px] text-on-surface mb-xs">${token.price < 1 ? token.price.toFixed(4) : token.price.toFixed(2)}</div>
+                  <AnimatedPrice price={token.price} className="font-mono text-[14px] text-on-surface mb-xs" />
                   <div className={`flex items-center gap-0.5 text-[12px] font-mono ${token.priceChange24h >= 0 ? 'text-secondary' : 'text-error'}`}>
                     <span className="material-symbols-outlined text-[14px]">
                       {token.priceChange24h >= 0 ? 'arrow_upward' : 'arrow_downward'}

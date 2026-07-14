@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import AnimatedPrice from "./AnimatedPrice";
 
 interface Token {
   mint: string;
@@ -24,7 +25,6 @@ export default function TrendingTokens() {
         const res = await fetch('/api/tokens/trending?limit=50');
         const data = await res.json();
 
-        // Deduplicate by mint address, keeping highest volume
         const uniqueTokens = Object.values(
           (data.tokens || []).reduce((acc: Record<string, Token>, token: Token) => {
             if (!acc[token.mint] || (acc[token.mint].volume24h < token.volume24h)) {
@@ -41,7 +41,10 @@ export default function TrendingTokens() {
         setIsLoading(false);
       }
     };
+
     fetchTrending();
+    const interval = setInterval(fetchTrending, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const displayTokens = tokens.slice(page * 10, (page + 1) * 10);
@@ -78,11 +81,12 @@ export default function TrendingTokens() {
             ))}
           </div>
         ) : displayTokens.length > 0 ? (
-          displayTokens.map((token) => (
+          displayTokens.map((token, index) => (
             <Link
               key={token.mint}
               href={`/token/${token.mint}`}
-              className="hover:bg-surface-container-high p-sm rounded-lg cursor-pointer transition-colors block"
+              className="hover:bg-surface-container-high p-sm rounded-lg cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg block animate-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
               <div className="flex items-center gap-sm">
                 <div className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden shrink-0">
@@ -98,7 +102,7 @@ export default function TrendingTokens() {
                   <div className="text-outline text-[12px] font-body-sm truncate">{token.name}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="font-mono text-[13px] text-on-surface">${token.price.toFixed(token.price < 1 ? 4 : 2)}</div>
+                  <AnimatedPrice price={token.price} className="font-mono text-[13px] text-on-surface" />
                   <div className={`flex items-center gap-0.5 text-[12px] font-mono justify-end ${token.priceChange24h >= 0 ? 'text-secondary' : 'text-error'}`}>
                     <span className="material-symbols-outlined text-[14px]">
                       {token.priceChange24h >= 0 ? 'arrow_upward' : 'arrow_downward'}

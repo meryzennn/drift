@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import TokenChart from "@/components/TokenChart";
+import AnimatedPrice from "@/components/AnimatedPrice";
 
 interface TokenData {
   mint: string;
@@ -29,7 +30,6 @@ export default function TokenPage() {
   useEffect(() => {
     const fetchTokenData = async () => {
       try {
-        // Fetch from trending list (includes all token data)
         const res = await fetch('/api/tokens/trending?limit=50');
         const data = await res.json();
 
@@ -50,6 +50,8 @@ export default function TokenPage() {
     };
 
     fetchTokenData();
+    const interval = setInterval(fetchTokenData, 10000);
+    return () => clearInterval(interval);
   }, [mint]);
 
   if (isLoading) {
@@ -78,7 +80,7 @@ export default function TokenPage() {
       <div className="sticky top-[64px] z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md py-md mb-lg">
         <div className="flex items-center gap-md">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/')}
             className="w-8 h-8 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors"
           >
             <span className="material-symbols-outlined text-on-surface">arrow_back</span>
@@ -115,7 +117,7 @@ export default function TokenPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-lg font-mono">
           <div>
             <div className="text-outline text-[12px] uppercase tracking-wide mb-xs">Price</div>
-            <div className="text-on-surface text-[20px] font-bold">${tokenData.price.toFixed(tokenData.price < 1 ? 4 : 2)}</div>
+            <AnimatedPrice price={tokenData.price} className="text-on-surface text-[20px] font-bold block" />
             <div className={`flex items-center gap-1 text-[14px] mt-xs ${tokenData.priceChange24h >= 0 ? 'text-secondary' : 'text-error'}`}>
               <span className="material-symbols-outlined text-[16px]">
                 {tokenData.priceChange24h >= 0 ? 'arrow_upward' : 'arrow_downward'}
