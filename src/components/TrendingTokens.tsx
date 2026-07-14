@@ -32,7 +32,7 @@ export default function TrendingTokens() {
             }
             return acc;
           }, {})
-        );
+        ) as Token[];
 
         setTokens(uniqueTokens);
       } catch (error) {
