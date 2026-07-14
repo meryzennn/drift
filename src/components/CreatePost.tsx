@@ -11,6 +11,7 @@ import { useMentionAutocomplete } from "@/hooks/useMentionAutocomplete";
 import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
 import { parseEmbeds } from "@/utils/embedParser";
 import SocialEmbed from "./SocialEmbed";
+import { storePostHashtags } from "@/app/actions/hashtags";
 
 const PLACEHOLDERS = [
   "What's happening in Web3?",
@@ -149,6 +150,29 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
           await supabase.from('notifications').insert(notifications);
         }
       }
+
+      // Handle hashtags
+      storePostHashtags(data.id, content).catch(err =>
+        console.error('Failed to store hashtags:', err)
+      );
+
+      // Optimistic update: store new post for immediate feed injection
+      const newPost = {
+        id: data.id,
+        authorPublicKey: publicKey.toString(),
+        content,
+        imageUrl: mediaUrl,
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        authorProfile: avatarUrl || currentUsername ? {
+          username: currentUsername || undefined,
+          displayName: currentUsername || undefined,
+          avatarUrl: avatarUrl || undefined,
+        } : undefined,
+        commentsCount: 0,
+        repostsCount: 0,
+      };
+      sessionStorage.setItem('newPost', JSON.stringify(newPost));
 
       // 3. Reset and Refresh
       setContent("");

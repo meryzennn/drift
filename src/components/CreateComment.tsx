@@ -11,6 +11,7 @@ import { uploadFileToR2, validateVideoFile } from "@/utils/upload";
 import imageCompression from "browser-image-compression";
 import { parseEmbeds } from "@/utils/embedParser";
 import SocialEmbed from "./SocialEmbed";
+import { storePostHashtags } from "@/app/actions/hashtags";
 
 export default function CreateComment({ postId, postAuthor, onSuccess }: { postId: string, postAuthor?: string, onSuccess?: (newPostId?: string) => void }) {
   const { connected, publicKey } = useWallet();
@@ -131,6 +132,11 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
           }
         }
       }
+
+      // Handle hashtags
+      storePostHashtags(data.id, content).catch(err =>
+        console.error('Failed to store hashtags:', err)
+      );
 
       setContent("");
       setFiles([]);

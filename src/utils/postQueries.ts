@@ -17,6 +17,20 @@ export const POST_SELECT_QUERY = `
   replies:posts!reply_to_post_id ( count ),
   reposts ( count ),
   quotes:posts!quote_post_id ( count ),
+  post_hashtags (
+    hashtags (
+      tag,
+      display_tag
+    )
+  ),
+  tips:notifications!notifications_post_id_fkey (
+    actor_wallet,
+    amount,
+    actor:users!notifications_actor_wallet_fkey (
+      username,
+      avatar_url
+    )
+  ),
   quote_post:quote_post_id (
     id,
     content,
@@ -34,7 +48,22 @@ export const POST_SELECT_QUERY = `
 
 export function mapPostData(p: any): Post {
   const quoteData = Array.isArray(p.quote_post) ? p.quote_post[0] : p.quote_post;
-  
+
+  const tips = (p.tips || []).filter((t: any) => t.amount && parseFloat(t.amount) > 0);
+  const totalTips = tips.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+  const topTippers = tips
+    .slice(0, 3)
+    .map((t: any) => ({
+      from_wallet: t.actor_wallet,
+      amount: parseFloat(t.amount || 0),
+      username: t.actor?.username,
+      avatar_url: t.actor?.avatar_url,
+    }));
+
+  const hashtags = (p.post_hashtags || [])
+    .map((ph: any) => ph.hashtags?.tag)
+    .filter(Boolean);
+
   return {
     id: p.id,
     authorPublicKey: p.author_wallet,
@@ -51,6 +80,9 @@ export function mapPostData(p: any): Post {
     repostsCount: (p.reposts?.[0]?.count ?? 0) + (p.quotes?.[0]?.count ?? 0),
     quotePostId: p.quote_post_id,
     replyToPostId: p.reply_to_post_id,
+    totalTips,
+    topTippers,
+    hashtags,
     quotePost: quoteData ? {
       id: quoteData.id,
       authorPublicKey: quoteData.author_wallet,
