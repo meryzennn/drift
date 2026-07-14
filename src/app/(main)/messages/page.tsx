@@ -32,6 +32,7 @@ export default function MessagesHub() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState("");
 
   // Needed so createPortal only runs client-side (document isn't available during SSR)
   useEffect(() => {
@@ -283,8 +284,22 @@ export default function MessagesHub() {
     }
   };
 
-  const totalPages = Math.ceil(conversations.length / PAGE_SIZE);
-  const paginated = conversations.slice(
+  // Filter conversations by search query (client-side)
+  const filteredConversations = conversationSearchQuery
+    ? conversations.filter((convo) => {
+        const isUser1 = convo.user1_wallet === publicKey?.toString();
+        const otherUser = isUser1 ? convo.user2 : convo.user1;
+
+        const searchLower = conversationSearchQuery.toLowerCase();
+        const displayName = (otherUser.display_name || "").toLowerCase();
+        const username = (otherUser.username || "").toLowerCase();
+
+        return displayName.includes(searchLower) || username.includes(searchLower);
+      })
+    : conversations;
+
+  const totalPages = Math.ceil(filteredConversations.length / PAGE_SIZE);
+  const paginated = filteredConversations.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
@@ -385,6 +400,36 @@ export default function MessagesHub() {
             <span className="material-symbols-outlined text-[20px]">add</span>
           </button>
         </div>
+        {conversations.length > 0 && (
+          <div className="relative mt-3">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Filter conversations..."
+              value={conversationSearchQuery}
+              onChange={(e) => {
+                setConversationSearchQuery(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-11 pr-4 py-2.5 bg-surface-container-low border border-outline-variant/50 rounded-full font-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+            />
+            {conversationSearchQuery && (
+              <button
+                onClick={() => {
+                  setConversationSearchQuery("");
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                  close
+                </span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -393,18 +438,32 @@ export default function MessagesHub() {
             <MessagesSkeleton key={i} />
           ))}
         </div>
-      ) : conversations.length === 0 ? (
-        <div className="w-full text-center py-20 bg-surface-container-low rounded-3xl border border-outline-variant/50">
-          <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4 opacity-50">
-            speaker_notes_off
-          </span>
-          <h3 className="font-headline-sm font-bold text-on-surface mb-2 w-full">
-            No messages yet
-          </h3>
-          <p className="font-body-md text-on-surface-variant w-full mx-auto">
-            Go to a mutual follower's profile to start chatting.
-          </p>
-        </div>
+      ) : filteredConversations.length === 0 ? (
+        conversationSearchQuery ? (
+          <div className="w-full text-center py-20 bg-surface-container-low rounded-3xl border border-outline-variant/50">
+            <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4 opacity-50">
+              search_off
+            </span>
+            <h3 className="font-headline-sm font-bold text-on-surface mb-2">
+              No conversations found
+            </h3>
+            <p className="font-body-md text-on-surface-variant">
+              No matches for &quot;{conversationSearchQuery}&quot;
+            </p>
+          </div>
+        ) : (
+          <div className="w-full text-center py-20 bg-surface-container-low rounded-3xl border border-outline-variant/50">
+            <span className="material-symbols-outlined text-[64px] text-on-surface-variant mb-4 opacity-50">
+              speaker_notes_off
+            </span>
+            <h3 className="font-headline-sm font-bold text-on-surface mb-2 w-full">
+              No messages yet
+            </h3>
+            <p className="font-body-md text-on-surface-variant w-full mx-auto">
+              Go to a mutual follower's profile to start chatting.
+            </p>
+          </div>
+        )
       ) : (
         <>
           <AnimatePresence mode="wait">
