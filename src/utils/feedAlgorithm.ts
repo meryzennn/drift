@@ -74,9 +74,16 @@ export function rankPersonalizedPosts(
   const scoredPosts: ScoredPost[] = posts.map(post => {
     let score = calculatePostScore(post, weights, currentTime);
 
-    // Massive boost for user's own posts so they always appear at top
+    // Time-decaying boost for user's own posts
     if (currentUserWallet && post.authorPublicKey === currentUserWallet) {
-      score *= 100;
+      const ageMinutes = (currentTime.getTime() - new Date(post.createdAt).getTime()) / (1000 * 60);
+
+      if (ageMinutes < 30) {
+        score *= 1.5;
+      } else if (ageMinutes < 120) {
+        score *= 1.2;
+      }
+      // No boost for posts older than 2 hours
     } else if (followingWallets.includes(post.authorPublicKey)) {
       score *= followBoost;
     }

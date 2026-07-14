@@ -211,15 +211,8 @@ export default function Feed({ posts }: FeedProps) {
         ...activityItems,
       ];
 
-      // Sort: everything by comparable score (user's posts always first)
+      // Sort: everything by comparable score
       merged.sort((a, b) => {
-        // User's own posts get massive boost to always appear first
-        const aIsOwn = publicKey && a.post.authorPublicKey === publicKey.toString();
-        const bIsOwn = publicKey && b.post.authorPublicKey === publicKey.toString();
-
-        if (aIsOwn && !bIsOwn) return -1;
-        if (bIsOwn && !aIsOwn) return 1;
-
         // For activity items, convert timestamp to score scale (recent activities rank high)
         const aScore = a.type === "post" && a.post.algorithmScore
           ? a.post.algorithmScore
