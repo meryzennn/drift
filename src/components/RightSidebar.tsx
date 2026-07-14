@@ -1,6 +1,7 @@
 "use client";
 
 import SearchBar from "./SearchBar";
+import TrendingTokens from "./TrendingTokens";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -94,36 +95,8 @@ export default function RightSidebar() {
         <SearchBar fullWidth />
       </div>
 
-      {/* Trending Section */}
-      <div className="bg-surface-container border border-outline-variant rounded-xl p-md">
-        <h3 className="font-headline-md text-[18px] font-bold text-on-surface mb-md px-xs">Trending in Web3</h3>
-        <div className="flex flex-col gap-sm">
-          {trending.length > 0 ? trending.map((item, i) => (
-            <Link
-              key={i}
-              href={`/explore?q=${item.tag.replace(/^#/, '')}`}
-              className="hover:bg-surface-container-high p-sm rounded-lg cursor-pointer transition-colors block"
-            >
-              <div className="flex justify-between items-start">
-                <div className="text-outline text-[12px] font-body-sm">{item.category} · Trending</div>
-                <span className="material-symbols-outlined text-outline text-[16px] hover:text-primary">more_horiz</span>
-              </div>
-              <div className="font-label-lg font-bold text-on-surface my-0.5">{item.tag}</div>
-              <div className="text-outline text-[12px] font-body-sm">{item.tweets} posts</div>
-            </Link>
-          )) : isLoading ? (
-            <div className="animate-pulse space-y-4 p-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 bg-surface-container-highest rounded-lg"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-md text-on-surface-variant font-body-sm">
-              No trending hashtags right now
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Trending Tokens Section */}
+      <TrendingTokens />
 
       {/* Who to follow Section */}
       <div className="bg-surface-container border border-outline-variant rounded-xl p-md">

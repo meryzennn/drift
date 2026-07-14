@@ -1,0 +1,123 @@
+> ## Documentation Index
+>
+> Fetch the complete documentation index at: https://dev.jup.ag/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Jupiter Price API
+
+> Overview of Jupiter Price API V3 providing accurate token prices across all Jupiter UIs and integrator platforms
+
+The Jupiter Price API aims to be the source of truth of token prices across all Jupiter UIs and integrator platforms, providing a seamless experience for developers and a reliable and accurate price source for users.
+
+## Challenges
+
+Accurately pricing tokens on-chain is deceptively complex. Unlike traditional markets with centralized pricing mechanisms and consistent liquidity, decentralized finance (DeFi) presents a set of dynamic and often adversarial conditions. The Price API V3 is built with these realities in mind, abstracting away challenges to deliver accurate, real-time token prices with integrity and consistency.
+
+| Challenge                                                      | Description                                                                                                                                                                                                                                                     |
+| :------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Gamification of Price**                                      | In decentralized environments, token prices can be manipulated or "gamed" for appearances or exploitative purposes. Common patterns include: <br /> \* Wash trading to inflate volume or imply activity <br /> \* Circular swaps to fabricate higher valuations |
+| **Fragmented, Volatile or Imbalanced Liquidity Across Venues** | Liquidity on Solana (and other chains) is spread across numerous protocols and AMMs. No single source can represent the entire market. Different pools might have wildly different pricing and can change very quickly.                                         |
+| **Low Liquidity Tokens**                                       | Some tokens trade rarely or only within shallow pools. In such cases, even small orders can cause large price swings, making pricing unreliable.                                                                                                                |
+
+## How Price is Derived
+
+Price API V3 prices tokens by using the **last swapped price (across all transactions)**. The swaps are priced by working outwards from a small set of reliable tokens (like SOL) whose price we get from external oracle sources.
+
+While and also after deriving the last swap price, we also utilize a number of heuristics to ensure the accuracy of the price and eliminate any outliers:
+
+- Asset origin and launch method
+- Market liquidity metrics
+- Market behaviour patterns
+- Holder distribution statistics
+- Trading activity indicators
+- [Organic Score](/tokens)
+
+:::caution
+When using Price API, do note that you may face many tokens where price is not available or returns null.
+
+This is because, we use the aforementioned heuristics to determine the price of a token and if the price is reliable - if certain combinations of these factors indicate potential issues with price reliability or market health, the token will be flagged and not provided a price.
+
+This is to safeguard users and prevent an inaccurate price from being returned.
+:::
+
+## Get Price
+
+Simply request via the base URL with the query parameters of your desired mint addresses. You can also comma-separate them to request for multiple prices.
+
+```js theme={null}
+const price = await (
+  await fetch(
+    "https://api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112,JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    {
+      headers: {
+        "x-api-key": "your-api-key",
+      },
+    },
+  )
+).json();
+console.log(JSON.stringify(price, null, 2));
+```
+
+## Price Response
+
+Here is the sample response, notice a few details here:
+
+- The `usdPrice` is the only price.
+- The `decimals` response is helpful to display price information on the UI.
+- The `blockId` can be used to verify the recency of the price.
+- The `priceChange24h` is the 24-hour price change as a percentage (e.g. `1.29` means +1.29%, `-3.47` means -3.47%), not a 0-1 fraction.
+
+```js theme={null}
+{
+  "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": {
+    "usdPrice": 0.4056018512541055,
+    "blockId": 348004026,
+    "decimals": 6,
+    "priceChange24h": 0.5292887924920519
+  },
+  "So11111111111111111111111111111111111111112": {
+    "usdPrice": 147.4789340738336,
+    "blockId": 348004023,
+    "decimals": 9,
+    "priceChange24h": 1.2907622140620008
+  }
+}
+```
+
+## Limitations
+
+**Query limits**
+
+- You can query up to 50 `ids` at once.
+
+**If the price of a token cannot be found**
+
+Tokens without a reliable price are **omitted entirely** from the response. The mint has no key in the returned object, rather than a key with a `null` value, and there is no error or per-mint reason. To find which of your requested mints were dropped, compare your requested `ids` against the keys that were returned:
+
+```js theme={null}
+const ids = [
+  "So11111111111111111111111111111111111111112",
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+];
+
+const price = await (
+  await fetch(`https://api.jup.ag/price/v3?ids=${ids.join(",")}`, {
+    headers: { "x-api-key": "your-api-key" },
+  })
+).json();
+
+const missing = ids.filter((id) => !(id in price));
+```
+
+A token is typically omitted when:
+
+- It has not been traded recently, in the last 7 days.
+- The aforementioned heuristics flag the price as unreliable, where certain combinations of factors indicate potential issues with price reliability or market health.
+
+For additional context, you can cross reference a token's `audit.isSus` field in the [Tokens API V2](/tokens). Note that `audit.isSus` is only present when a token has been flagged suspicious, so its absence is not a guarantee of safety. Most tokens omitted from the price response are simply untraded or illiquid rather than flagged.
+
+**V3 simplifies pricing**
+
+- V3 returns a single accurate price per token, eliminating ambiguity from V2's multiple price fields that led to inconsistent interpretations across platforms.
+- Price accuracy is maintained through [heuristics](#how-price-is-derived) that eliminate outliers, providing one stable price source.
+- If you need the additional data that V2 provided, use the `/quote` endpoint of the Swap API to derive equivalent values ([see how Price API V2 pricing was derived](https://www.jupresear.ch/t/introducing-the-price-v2-api/22175)).

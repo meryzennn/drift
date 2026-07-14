@@ -1,0 +1,101 @@
+> ## Documentation Index
+>
+> Fetch the complete documentation index at: https://dev.jup.ag/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Tokens API
+
+> Search, metadata, verification, and organic score for any Solana token
+
+The Tokens API gives you search, metadata, verification status, and trading metrics for any Solana token. Use it to find tokens, display information to users, and filter by trust level.
+
+## History
+
+Token verification on Solana has evolved through several iterations: from the original Solana Token Registry (deprecated 2022), to Jupiter's community-maintained token lists (V1 via GitHub, V2 via Catdet List), to the current system powered by trading metrics, social signals, and Organic Score. Today, [Jupiter VRFD](https://verified.jup.ag) is the latest evolution, expanding beyond verification into token metadata, community content, and insights.
+
+## What You Get
+
+| Field             | Description                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| **Metadata**      | Name, symbol, icon, decimals, mint address                               |
+| **Verification**  | Verification level (verified, unverified, banned)                        |
+| **Organic Score** | 0-100 score measuring genuine trading activity                           |
+| **Trading Stats** | Volume, price change, buy/sell counts across intervals (5m, 1h, 6h, 24h) |
+| **Market Data**   | Holder count, market cap, liquidity                                      |
+| **Content**       | Community-submitted text posts, tweets, summaries _(deprecated)_         |
+
+## Verification Levels
+
+Jupiter categorises tokens into trust levels based on trading activity, social presence, and community review:
+
+| Level          | Meaning                                                                       | When to use                      |
+| -------------- | ----------------------------------------------------------------------------- | -------------------------------- |
+| **Verified**   | Passed Jupiter's verification process. Legitimate project with real activity. | Safe to display prominently.     |
+| **Unverified** | Not yet reviewed or doesn't meet criteria. May still be legitimate.           | Display with caution indicators. |
+| **Banned**     | Flagged as malicious, scam, or misleading.                                    | Do not display or warn users.    |
+
+Check the `isVerified` field in the API response. Use `audit.isSus` as an additional signal for suspicious tokens. `audit.isSus` is only present when a token has been flagged, so check for the field's presence rather than its value.
+
+## Organic Score
+
+Organic Score (0-100) measures how genuine a token's trading activity is, filtering out bots, snipers, and copy-trading tools so you can find the signal within the noise. The system identifies non-organic wallets (those trading through known bot and automation channels) and treats the remaining activity as organic.
+
+The score combines four organic signals:
+
+- Organic volume
+- Organic holders
+- Organic traders
+- Organic buyers
+
+A few things to keep in mind when using it:
+
+- **It is relative, not absolute.** Scores are normalised against the rest of the ecosystem. The score says a token is more organic than another, not that it has a specific amount of organic activity. High-volume tokens like SOL and USDC sit near 100 because differences flatten out at that scale.
+- **Early growth counts most.** Going from 10 organic buyers to 100 moves the score far more than going from 10,000 to 10,100.
+- **Prefer the raw score over the label.** Each token also has an `organicScoreLabel` of `high`, `medium`, or `low`, but these buckets are wide: two tokens can both be `medium` and behave very differently. For filtering, use the raw `organicScore`.
+
+For more detail, see [How does Jupiter decide if a token is real?](https://developers.jup.ag/blog/what-is-organic-score).
+
+## Token Tags
+
+Token tags are labels applied to tokens for categorisation and discoverability (e.g. `verified`, `lst`, `stocks`, `community`). Tags appear in the Jupiter UI and are available via the [GET /tag](/api-reference/tokens/tag) endpoint.
+
+To get your tokens tagged:
+
+1. Host a public CSV endpoint with mint addresses (one per row)
+2. Provide a preferred tag name (short, mobile-friendly)
+3. Set a polling interval
+4. Reach out via [Discord](https://discord.gg/jup) to begin ingestion
+
+## API Reference
+
+<CardGroup cols={2}>
+  <Card title="Search" icon="magnifying-glass" href="/api-reference/tokens/search">
+    Search by name, symbol, or mint address
+  </Card>
+
+  <Card title="Tag" icon="tag" href="/api-reference/tokens/tag">
+    Get tokens by tag (verified, lst, stocks)
+  </Card>
+
+  <Card title="Category" icon="chart-line" href="/api-reference/tokens/category">
+    Top tokens by organic score, volume, or trending
+  </Card>
+
+  <Card title="Recent" icon="clock" href="/api-reference/tokens/recent">
+    Recently created tokens with first pool
+  </Card>
+
+  <Card title="Check Eligibility" icon="circle-check" href="/api-reference/tokens/verify-check-eligibility">
+    Check if a token can be verified
+  </Card>
+
+  <Card title="Craft Transaction" icon="file-signature" href="/api-reference/tokens/verify-craft-txn">
+    Get an unsigned 1000 JUP payment transaction
+  </Card>
+</CardGroup>
+
+## Learn More
+
+- [Token Information](/tokens/token-information) for the full response schema and field reference
+- [Express Verification](/tokens/verification) to submit tokens for verification via API
+- [Get Token Information guide](/guides/how-to-get-token-information) for a step-by-step integration tutorial

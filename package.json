@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1085.0",
     "@aws-sdk/s3-request-presigner": "^3.1085.0",
+    "@jup-ag/api": "^6.0.48",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
@@ -22,6 +23,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.42.2",
+    "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "react": "19.2.4",
@@ -29,6 +31,7 @@
     "react-easy-crop": "^6.2.2",
     "react-hot-toast": "^2.6.0",
     "react-virtuoso": "^4.18.10",
+    "recharts": "^3.9.2",
     "tailwind-merge": "^3.6.0",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1"
