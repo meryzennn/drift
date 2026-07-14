@@ -149,6 +149,17 @@ function ExploreContent() {
     fetchTrendingHashtags();
   }, []);
 
+  // Listen for post deletions
+  useEffect(() => {
+    const handlePostDeleted = (e: any) => {
+      const { postId } = e.detail;
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    };
+
+    window.addEventListener("post-deleted", handlePostDeleted);
+    return () => window.removeEventListener("post-deleted", handlePostDeleted);
+  }, []);
+
   useEffect(() => {
     if (query) {
       const matchesHashtag = trendingHashtags.some(

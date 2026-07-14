@@ -329,6 +329,11 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
       setIsRepostedByMe(false);
       setLocalRepostsCount((prev) => Math.max(0, prev - 1));
       await supabase.from("reposts").delete().eq("post_id", post.id).eq("user_wallet", publicKey.toString());
+
+      // Notify parent if this is a repost card that should be removed
+      if (post.isRepost) {
+        window.dispatchEvent(new CustomEvent("repost-undone", { detail: { postId: post.id } }));
+      }
       return;
     }
 
@@ -546,9 +551,12 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
       // 3. Delete the post from Supabase (this will CASCADE delete the replies from the DB)
       const { error } = await supabase.from("posts").delete().eq("id", post.id);
       if (error) throw error;
-      
+
       toast.success("Post deleted.");
       setIsDeleted(true);
+
+      // Notify parent components to remove this post from their state
+      window.dispatchEvent(new CustomEvent("post-deleted", { detail: { postId: post.id } }));
     } catch (err: any) {
       toast.error(err.message || "Failed to delete post.");
     } finally {
@@ -831,7 +839,9 @@ const PostCard = ({ post, isDetail = false, hideReplyIndicator = false, isHighli
               {parseEmbeds(localQuotePost.content).embeds.length > 0 && (
                 <div className="flex flex-col gap-2 mt-xs">
                   {parseEmbeds(localQuotePost.content).embeds.map((embed, i) => (
-                    <SocialEmbed key={`quote-embed-${i}`} embed={embed} />
+                    <div key={`quote-embed-${i}`} onClick={(e) => e.stopPropagation()}>
+                      <SocialEmbed embed={embed} />
+                    </div>
                   ))}
                 </div>
               )}

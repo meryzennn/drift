@@ -470,7 +470,7 @@ export default function CreatePost({ onSuccess }: { onSuccess?: () => void }) {
                 <button
                   type="submit"
                   disabled={(!content.trim() && files.length === 0 && !gifUrl) || loading || content.length > 255}
-                  className="bg-primary-container text-on-primary-container px-lg py-xs rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50"
+                  className="bg-primary-container text-on-primary-container px-lg py-xs rounded-full font-label-md hover:brightness-110 transition-all disabled:opacity-50 min-w-[80px]"
                 >
                   {loading ? "Posting..." : "Post"}
                 </button>
