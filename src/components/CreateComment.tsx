@@ -74,8 +74,8 @@ export default function CreateComment({ postId, postAuthor, onSuccess }: { postI
       if (files.length > 0) {
         const uploadPromises = files.map(async (f) => {
           let fileToUpload: File | Blob = f;
-          
-          if (f.type.startsWith("image/")) {
+
+          if (f.type.startsWith("image/") && f.type !== "image/gif") {
             try {
               fileToUpload = await imageCompression(f, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
             } catch (error) {

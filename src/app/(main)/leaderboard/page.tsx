@@ -150,37 +150,37 @@ export default async function LeaderboardPage({
             </AnimatedList>
             
             {/* Pagination Controls */}
-            <div className="flex items-center justify-between p-md bg-surface-container border-t border-outline-variant/50 mt-4 mx-4 rounded-xl mb-4 shadow-sm">
+            <div className="flex items-center justify-between p-md bg-surface-container border-t border-outline-variant/50 mt-4 mx-2 sm:mx-4 rounded-xl mb-4 shadow-sm">
               {page > 1 ? (
-                <Link 
+                <Link
                   href={`/leaderboard?page=${page - 1}`}
-                  className="px-5 py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-2"
+                  className="px-3 py-2 sm:px-5 sm:py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-1.5 sm:gap-2"
                 >
                   <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                  Previous
+                  <span className="hidden sm:inline">Previous</span>
                 </Link>
               ) : (
-                <div className="px-5 py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-2 cursor-not-allowed">
+                <div className="px-3 py-2 sm:px-5 sm:py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-1.5 sm:gap-2 cursor-not-allowed">
                   <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                  Previous
+                  <span className="hidden sm:inline">Previous</span>
                 </div>
               )}
-              
-              <div className="font-label-lg font-bold bg-surface-container-highest px-4 py-2 rounded-full text-on-surface shadow-inner">
+
+              <div className="font-label-lg font-bold bg-surface-container-highest px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-on-surface shadow-inner">
                 Page {page}
               </div>
-              
+
               {topTippers.length === limit ? (
-                <Link 
+                <Link
                   href={`/leaderboard?page=${page + 1}`}
-                  className="px-5 py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-2"
+                  className="px-3 py-2 sm:px-5 sm:py-2.5 rounded-full border border-outline-variant hover:bg-surface-container-highest hover:border-primary/50 transition-colors font-label-lg text-on-surface flex items-center gap-1.5 sm:gap-2"
                 >
-                  Next
+                  <span className="hidden sm:inline">Next</span>
                   <span className="material-symbols-outlined text-[20px]">chevron_right</span>
                 </Link>
               ) : (
-                <div className="px-5 py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-2 cursor-not-allowed">
-                  Next
+                <div className="px-3 py-2 sm:px-5 sm:py-2.5 rounded-full border border-outline-variant/30 text-on-surface-variant/50 font-label-lg flex items-center gap-1.5 sm:gap-2 cursor-not-allowed">
+                  <span className="hidden sm:inline">Next</span>
                   <span className="material-symbols-outlined text-[20px]">chevron_right</span>
                 </div>
               )}

@@ -10,6 +10,7 @@ import ImageCropper from "@/components/ImageCropper";
 import MediaPickerModal from "@/components/MediaPickerModal";
 import { useUsernameCheck } from "@/hooks/useUsernameCheck";
 import imageCompression from "browser-image-compression";
+import { uploadFileToR2 } from "@/utils/upload";
 
 const ADMIN_WALLET_ADDRESS = "GwYQsXwVtwy1czytYLzNqN5Ao5xacndswrkeKZNJbTbX";
 const USERNAME_CHANGE_FEE = 0.05;
@@ -233,10 +234,20 @@ export default function EditProfilePage() {
       let newBannerUrl = bannerUrl;
 
       if (avatarPreview && avatarPreview.startsWith("blob:")) {
-        newAvatarUrl = await uploadFileFromBlob(avatarPreview, "avatar");
+        if (avatarFile && avatarFile.type === "image/gif") {
+          // Upload GIF directly without compression
+          newAvatarUrl = await uploadFileToR2(avatarFile, avatarFile.name, avatarFile.type);
+        } else {
+          newAvatarUrl = await uploadFileFromBlob(avatarPreview, "avatar");
+        }
       }
       if (bannerPreview && bannerPreview.startsWith("blob:")) {
-        newBannerUrl = await uploadFileFromBlob(bannerPreview, "banner");
+        if (bannerFile && bannerFile.type === "image/gif") {
+          // Upload GIF directly without compression
+          newBannerUrl = await uploadFileToR2(bannerFile, bannerFile.name, bannerFile.type);
+        } else {
+          newBannerUrl = await uploadFileFromBlob(bannerPreview, "banner");
+        }
       }
 
       // Update DB

@@ -9,6 +9,7 @@ import ImageCropper from "@/components/ImageCropper";
 import MediaPickerModal from "@/components/MediaPickerModal";
 import { useUsernameCheck } from "@/hooks/useUsernameCheck";
 import imageCompression from "browser-image-compression";
+import { uploadFileToR2 } from "@/utils/upload";
 
 export default function SetupProfilePage() {
   const { publicKey, connected } = useWallet();
@@ -26,6 +27,8 @@ export default function SetupProfilePage() {
 
   const [avatarPreview, setAvatarPreview] = useState("");
   const [bannerPreview, setBannerPreview] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
   // Cropper & Picker state
   const [cropperSrc, setCropperSrc] = useState("");
@@ -58,8 +61,13 @@ export default function SetupProfilePage() {
     setMediaPickerTarget(null);
     if (file.type === "image/gif") {
       const url = URL.createObjectURL(file);
-      if (target === "avatar") setAvatarPreview(url);
-      else setBannerPreview(url);
+      if (target === "avatar") {
+        setAvatarPreview(url);
+        setAvatarFile(file);
+      } else {
+        setBannerPreview(url);
+        setBannerFile(file);
+      }
       return;
     }
     setCropperSrc(URL.createObjectURL(file));
@@ -119,15 +127,25 @@ export default function SetupProfilePage() {
 
       if (avatarPreview) {
         if (avatarPreview.startsWith("blob:")) {
-          finalAvatarUrl = await uploadFileFromBlob(avatarPreview, "avatar");
+          if (avatarFile && avatarFile.type === "image/gif") {
+            // Upload GIF directly without compression
+            finalAvatarUrl = await uploadFileToR2(avatarFile, avatarFile.name, avatarFile.type);
+          } else {
+            finalAvatarUrl = await uploadFileFromBlob(avatarPreview, "avatar");
+          }
         } else {
           finalAvatarUrl = avatarPreview; // e.g. Giphy URL
         }
       }
-      
+
       if (bannerPreview) {
         if (bannerPreview.startsWith("blob:")) {
-          finalBannerUrl = await uploadFileFromBlob(bannerPreview, "banner");
+          if (bannerFile && bannerFile.type === "image/gif") {
+            // Upload GIF directly without compression
+            finalBannerUrl = await uploadFileToR2(bannerFile, bannerFile.name, bannerFile.type);
+          } else {
+            finalBannerUrl = await uploadFileFromBlob(bannerPreview, "banner");
+          }
         } else {
           finalBannerUrl = bannerPreview; // e.g. Giphy URL
         }

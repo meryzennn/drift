@@ -398,11 +398,13 @@ export default function ChatRoom({ params }: { params: Promise<{ id: string }> }
         toast.loading("Uploading pasted image...");
         try {
           let fileToUpload: File | Blob = file;
-          try {
-            fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
-          } catch (e) {
-            console.error("Compression error:", e);
-            throw new Error("Failed to compress image.");
+          if (file.type !== "image/gif") {
+            try {
+              fileToUpload = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+            } catch (e) {
+              console.error("Compression error:", e);
+              throw new Error("Failed to compress image.");
+            }
           }
           const mediaUrl = await uploadFileToR2(fileToUpload, file.name, file.type);
           toast.dismiss();

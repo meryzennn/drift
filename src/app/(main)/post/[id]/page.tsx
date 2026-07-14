@@ -47,11 +47,13 @@ export default async function PostDetailPage({ params, searchParams }: { params:
   post.commentsCount = replies.length;
 
   return (
-    <div className="flex flex-col">
+    <div className="bg-background min-h-screen pb-xl">
       {/* Header with Back Button */}
-      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant p-md flex items-center gap-md">
-        <BackButton />
-        <h1 className="font-headline-sm font-bold text-on-surface">Post</h1>
+      <div className="sticky top-16 z-40 bg-background/80 backdrop-blur-md border-b border-outline-variant -mx-md px-md mb-md">
+        <div className="py-md flex items-center gap-md">
+          <BackButton />
+          <h1 className="font-headline-sm font-bold text-on-surface">Post</h1>
+        </div>
       </div>
 
       {/* Main Post and Replies — managed client-side via realtime, no router.refresh() */}
