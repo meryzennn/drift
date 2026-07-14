@@ -41,8 +41,8 @@ export async function GET() {
       // Match section headers: ### Added
       const sectionMatch = line.match(/^###\s+(Added|Changed|Fixed|Removed)$/i);
       if (sectionMatch && currentEntry) {
-        currentSection = sectionMatch[1].toLowerCase() as typeof currentSection;
-        if (currentSection && !currentEntry.changes[currentSection]) {
+        currentSection = sectionMatch[1].toLowerCase() as "added" | "changed" | "fixed" | "removed";
+        if (!currentEntry.changes[currentSection]) {
           currentEntry.changes[currentSection] = [];
         }
         continue;
