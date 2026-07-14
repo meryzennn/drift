@@ -34,7 +34,14 @@ export default function TrendingTokens() {
           }, {})
         ) as Token[];
 
-        setTokens(uniqueTokens);
+        const solMint = 'So11111111111111111111111111111111111111112';
+        const solToken = uniqueTokens.find(t => t.mint === solMint);
+        const otherTokens = uniqueTokens.filter(t => t.mint !== solMint);
+
+        otherTokens.sort((a, b) => b.priceChange24h - a.priceChange24h);
+
+        const sortedTokens = solToken ? [solToken, ...otherTokens] : otherTokens;
+        setTokens(sortedTokens);
       } catch (error) {
         console.error('Error fetching trending tokens:', error);
       } finally {
